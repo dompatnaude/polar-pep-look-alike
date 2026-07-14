@@ -1,0 +1,164 @@
+// ---------- Product data ----------
+var PRODUCTS = [
+  {id:'bpc157', name:'BPC-157', tag:'ACCELERATED RECOVERY', color:'#e8fbef;color:#16a34a', price:92.99},
+  {id:'glp3', name:'GLP-3 Peptide', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', price:169.99},
+  {id:'ghkcu', name:'GHK-Cu', tag:'SKIN & TISSUE REPAIR', color:'#fdeef4;color:#db2777', price:49.99},
+  {id:'cjc', name:'CJC-1295 + Ipamorelin', tag:'SUSTAINED GH RELEASE', color:'#fff4e5;color:#d97706', price:94.99},
+  {id:'motsc', name:'MOTS-c', tag:'MITOCHONDRIAL SUPPORT', color:'#e8fbef;color:#16a34a', price:64.99},
+  {id:'blend', name:'BPC-157 + TB-500', tag:'TISSUE REPAIR', color:'#eef1fc;color:#2f43e0', price:179.99},
+  {id:'semax', name:'Semax', tag:'FOCUS & NEUROPROTECTION', color:'#fdeef4;color:#db2777', price:79.99},
+  {id:'nad', name:'NAD+', tag:'CELLULAR ENERGY', color:'#fff4e5;color:#d97706', price:129.99}
+];
+var cart = {};
+
+function renderProducts(){
+  var grid = document.getElementById('productGrid');
+  if(!grid) return;
+  grid.innerHTML = PRODUCTS.map(function(p){
+    return '<div class="card"><div class="img"></div><div class="body">'+
+      '<span class="tag" style="background:'+p.color+'">'+p.tag+'</span>'+
+      '<h3>'+p.name+'</h3>'+
+      '<div class="from">From <b>$'+p.price.toFixed(2)+'</b></div>'+
+      '<button class="add-btn" data-id="'+p.id+'">Add to Cart</button>'+
+      '</div></div>';
+  }).join('');
+  grid.querySelectorAll('.add-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      addToCart(btn.getAttribute('data-id'));
+      btn.textContent = 'Added \u2713';
+      btn.classList.add('added');
+      setTimeout(function(){ btn.textContent='Add to Cart'; btn.classList.remove('added'); }, 1200);
+    });
+  });
+}
+
+// ---------- Cart ----------
+function addToCart(id){
+  cart[id] = (cart[id]||0) + 1;
+  var p = PRODUCTS.find(function(x){return x.id===id;});
+  showToast(p.name + ' added to cart');
+  renderCart();
+}
+function changeQty(id, delta){
+  cart[id] = (cart[id]||0) + delta;
+  if(cart[id] <= 0) delete cart[id];
+  renderCart();
+}
+function removeItem(id){ delete cart[id]; renderCart(); }
+
+function renderCart(){
+  var body = document.getElementById('cartBody');
+  var ids = Object.keys(cart);
+  var count = 0, total = 0;
+  ids.forEach(function(id){ count += cart[id]; total += cart[id]*PRODUCTS.find(function(x){return x.id===id;}).price; });
+  var badge = document.getElementById('cartCount');
+  badge.textContent = count;
+  badge.style.display = count>0 ? 'flex' : 'none';
+  document.getElementById('cartTotal').textContent = '$'+total.toFixed(2);
+  if(!ids.length){ body.innerHTML = '<p class="cart-empty">Your cart is empty.</p>'; return; }
+  body.innerHTML = ids.map(function(id){
+    var p = PRODUCTS.find(function(x){return x.id===id;});
+    return '<div class="cart-item"><div class="thumb"></div><div class="info">'+
+      '<div class="nm">'+p.name+'</div><div class="pr">$'+p.price.toFixed(2)+'</div>'+
+      '<div class="qty"><button data-dec="'+id+'">-</button><span>'+cart[id]+'</span><button data-inc="'+id+'">+</button></div>'+
+      '</div><button class="rm" data-rm="'+id+'">Remove</button></div>';
+  }).join('');
+  body.querySelectorAll('[data-inc]').forEach(function(b){b.onclick=function(){changeQty(b.getAttribute('data-inc'),1);};});
+  body.querySelectorAll('[data-dec]').forEach(function(b){b.onclick=function(){changeQty(b.getAttribute('data-dec'),-1);};});
+  body.querySelectorAll('[data-rm]').forEach(function(b){b.onclick=function(){removeItem(b.getAttribute('data-rm'));};});
+}
+
+function openCart(){ document.getElementById('drawer').classList.add('open'); document.getElementById('backdrop').classList.add('show'); }
+function closeCart(){ document.getElementById('drawer').classList.remove('open'); document.getElementById('backdrop').classList.remove('show'); }
+
+// ---------- Toast ----------
+var toastTimer;
+function showToast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2000);
+}
+
+// ---------- Calculator ----------
+function calc(){
+  var pep = parseFloat(document.getElementById('pep').value);
+  var water = parseFloat(document.getElementById('water').value);
+  var dose = parseFloat(document.getElementById('dose').value);
+  var out = document.getElementById('units');
+  var vol = document.getElementById('vol');
+  if(!pep || !water || !dose){ out.textContent='--'; vol.textContent='Enter all values above'; return; }
+  var conc = (pep*1000)/water;
+  var ml = dose/conc;
+  var iu = ml*100;
+  out.textContent = iu.toFixed(1)+' IU';
+  vol.textContent = 'Draw to '+iu.toFixed(1)+' units on a U-100 insulin syringe ('+ml.toFixed(3)+' mL). Concentration: '+conc.toFixed(0)+' mcg/mL.';
+}
+
+// ---------- Contact form ----------
+function submitForm(e){
+  e.preventDefault();
+  document.querySelector('.form-msg').style.display='block';
+  e.target.reset();
+  return false;
+}
+
+// ---------- Entry gate ----------
+function initGate(){
+  var overlay = document.getElementById('gate');
+  if(!overlay) return;
+  document.body.classList.add('locked');
+  var r=document.getElementById('g-research'), a=document.getElementById('g-age'), i=document.getElementById('g-inst'), e=document.getElementById('g-enter');
+  function v(){ e.disabled = !(r.checked && a.checked && i.value); }
+  [r,a,i].forEach(function(el){ el.addEventListener('change', v); });
+  e.addEventListener('click', function(){ overlay.classList.add('hidden'); document.body.classList.remove('locked'); });
+  var d=document.getElementById('g-decline');
+  if(d) d.addEventListener('click', function(){ window.location.href='https://www.google.com'; });
+  v();
+}
+
+// ---------- Init ----------
+window.addEventListener('DOMContentLoaded', function(){
+  renderProducts();
+  renderCart();
+  initGate();
+
+  // FAQ accordion
+  document.addEventListener('click', function(e){
+    var q = e.target.closest('.q');
+    if(q) q.parentElement.classList.toggle('open');
+  });
+
+  // Calculator live
+  ['pep','water','dose'].forEach(function(id){ document.getElementById(id).addEventListener('input', calc); });
+  calc();
+
+  // Header + cart controls
+  document.getElementById('cartBtn').addEventListener('click', openCart);
+  document.getElementById('closeCart').addEventListener('click', closeCart);
+  document.getElementById('backdrop').addEventListener('click', closeCart);
+  document.getElementById('searchBtn').addEventListener('click', function(){
+    document.getElementById('products').scrollIntoView({behavior:'smooth'});
+    showToast('Browse our catalog below');
+  });
+  document.getElementById('accountBtn').addEventListener('click', function(){
+    document.getElementById('contact').scrollIntoView({behavior:'smooth'});
+    showToast('Sign-in coming soon \u2014 contact us for account access');
+  });
+  document.getElementById('checkoutBtn').addEventListener('click', function(){
+    if(!Object.keys(cart).length){ showToast('Your cart is empty'); return; }
+    cart = {}; renderCart(); closeCart();
+    showToast('Order placed! (demo checkout)');
+  });
+
+  // Smooth scroll for in-page anchors
+  document.querySelectorAll('a[href^="#"]').forEach(function(link){
+    link.addEventListener('click', function(ev){
+      var id = link.getAttribute('href');
+      if(id.length>1){
+        var el = document.querySelector(id);
+        if(el){ ev.preventDefault(); el.scrollIntoView({behavior:'smooth'}); }
+      }
+    });
+  });
+});
