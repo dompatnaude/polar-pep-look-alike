@@ -34,3 +34,32 @@ window.addEventListener('DOMContentLoaded', function(){
   });
   calc();
 });
+
+// Entry disclaimer gate
+function initGate(){
+  var overlay = document.getElementById('gate');
+  if(!overlay) return;
+  document.body.classList.add('locked');
+  var research = document.getElementById('g-research');
+  var age = document.getElementById('g-age');
+  var inst = document.getElementById('g-inst');
+  var enter = document.getElementById('g-enter');
+  function validate(){
+    enter.disabled = !(research.checked && age.checked && inst.value);
+  }
+  research.addEventListener('change', validate);
+  age.addEventListener('change', validate);
+  inst.addEventListener('change', validate);
+  enter.addEventListener('click', function(){
+    overlay.classList.add('hidden');
+    document.body.classList.remove('locked');
+  });
+  var decline = document.getElementById('g-decline');
+  if(decline){
+    decline.addEventListener('click', function(){
+      window.location.href = 'https://www.google.com';
+    });
+  }
+  validate();
+}
+window.addEventListener('DOMContentLoaded', initGate);

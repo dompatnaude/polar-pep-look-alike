@@ -95,3 +95,22 @@ footer li{list-style:none;margin:8px 0;font-size:14px;}
 footer .logo{color:#fff;margin-bottom:14px;}
 .copy{border-top:1px solid #2a3050;padding-top:22px;font-size:13px;text-align:center;}
 @media(max-width:900px){.hero,.about .container{grid-template-columns:1fr;}.grid{grid-template-columns:1fr 1fr;}.hero h1{font-size:44px;}nav.menu{display:none;}.fgrid,.tgrid{grid-template-columns:1fr;}.calc-grid,.cform .row{grid-template-columns:1fr;}}
+
+/* Entry disclaimer modal */
+.overlay{position:fixed;inset:0;background:rgba(16,20,38,.75);backdrop-filter:blur(4px);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+.overlay.hidden{display:none;}
+.modal{background:#fff;border-radius:20px;max-width:520px;width:100%;padding:40px;box-shadow:0 30px 80px rgba(0,0,0,.4);}
+.modal .ml{display:inline-flex;align-items:center;gap:8px;font-weight:800;font-size:22px;margin-bottom:6px;}
+.modal .ml .ic{width:34px;height:34px;background:var(--blue);border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:#fff;}
+.modal h2{font-size:26px;font-weight:800;letter-spacing:-.5px;margin:14px 0 8px;text-align:left;}
+.modal p.intro{color:var(--muted);font-size:15px;margin-bottom:22px;}
+.check{display:flex;gap:12px;align-items:flex-start;margin-bottom:16px;font-size:15px;line-height:1.4;cursor:pointer;}
+.check input{margin-top:3px;width:18px;height:18px;flex:0 0 auto;accent-color:var(--blue);cursor:pointer;}
+.modal .field{margin-bottom:22px;}
+.modal select{width:100%;padding:14px;border:1px solid #d7dbe8;border-radius:10px;font-size:15px;background:#fff;cursor:pointer;}
+.modal select:focus{outline:none;border-color:var(--blue);}
+.modal .enter{width:100%;justify-content:center;}
+.modal .enter:disabled{background:#c3c8e0;cursor:not-allowed;}
+.modal .decline{display:block;text-align:center;color:var(--muted);font-size:13px;margin-top:16px;cursor:pointer;background:none;border:none;width:100%;}
+.modal .legal{color:var(--muted);font-size:12px;margin-top:18px;text-align:center;}
+body.locked{overflow:hidden;}
