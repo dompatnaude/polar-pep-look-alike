@@ -156,13 +156,13 @@ footer .logo{color:#fff;margin-bottom:14px;}
 .terms-section p,.terms-section li{margin-bottom:8px;}
 .terms-section ol{padding-left:18px;}
 .terms-section ul{padding-left:18px;margin:6px 0 0;}
-.copy{border-top:1px solid #2a3050;padding-top:22px;font-size:13px;text-align:center;}
+.copy{padding-top:22px;font-size:13px;text-align:center;}
 
 /* Home footer layout */
 .footer-top{display:flex;justify-content:space-between;align-items:flex-start;gap:42px;}
 .footer-brand-contact{display:flex;align-items:flex-start;gap:24px;}
-.footer-brand-contact .logo{order:2;margin-bottom:0;}
-.footer-contact{order:1;}
+.footer-brand-contact .logo{order:1;margin-bottom:0;}
+.footer-contact{order:2;}
 .footer-contact h4{font-weight:800;}
 .footer-small{font-size:13px;color:#c4c9dd;line-height:1.6;margin:0 0 8px;}
 .footer-small a{color:#d8def8;}
@@ -172,11 +172,11 @@ footer .logo{color:#fff;margin-bottom:14px;}
 .quick-link-buttons{display:flex;flex-direction:column;gap:10px;}
 .footer-btn{display:inline-flex;justify-content:center;align-items:center;min-width:170px;padding:10px 14px;font-size:13px;font-weight:700;border-radius:10px;border:1px solid #2f3b69;background:#1a2242;color:#e6ebff;transition:background .2s ease,border-color .2s ease;}
 .footer-btn:hover{background:#23306a;border-color:#3f52a1;}
-.footer-disclaimer{border-top:1px solid #2a3050;margin-top:24px;padding-top:18px;}
+.footer-disclaimer{margin-top:24px;padding-top:18px;}
 .footer-disclaimer p{font-size:12px;line-height:1.7;color:#aeb6d3;}
-.policy-links{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;border-top:1px solid #2a3050;margin-top:14px;padding-top:14px;}
-.policy-btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;font-size:12px;font-weight:700;border-radius:999px;border:1px solid #3a4677;background:#161d37;color:#d8def8;}
-.policy-btn:hover{background:#1f2a54;color:#fff;}
+.policy-links{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;margin-top:14px;padding-top:14px;}
+.policy-btn{font-size:12px;font-weight:600;color:#d8def8;}
+.policy-btn:hover{color:#fff;text-decoration:underline;}
 .policy-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px;}
 .policy-details article{border:1px solid #28325a;background:#131a32;border-radius:12px;padding:12px;scroll-margin-top:90px;}
 .policy-details h5{font-size:13px;color:#fff;margin-bottom:6px;}
