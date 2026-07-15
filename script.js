@@ -10,14 +10,172 @@ var PRODUCTS = [
   {id:'nad', name:'NAD+', tag:'CELLULAR ENERGY', color:'#fff4e5;color:#d97706', category:'Cellular', description:'A high-purity NAD+ precursor for cellular performance and metabolic recovery.', price:129.99}
 ];
 var STORAGE_KEY = 'pepxCart';
+var GATE_ACCEPTED_KEY = 'pepxGateAccepted';
 var cart = {};
 var selectedProductId = null;
 var activeCategory = 'all';
 var activeSort = 'default';
+var currentAuthSession = null;
+
+function normalizeCategoryFilter(value){
+  if(!value) return 'all';
+  var normalized = String(value).trim().toLowerCase();
+  if(normalized === 'all') return 'all';
+  var match = PRODUCTS.find(function(product){
+    return product.category.toLowerCase() === normalized;
+  });
+  return match ? match.category : 'all';
+}
+
+function syncActiveCategoryPills(){
+  document.querySelectorAll('.pill').forEach(function(item){
+    item.classList.toggle('active', item.getAttribute('data-filter') === activeCategory);
+  });
+}
+
+function initShopCategoryFromUrl(){
+  var params = new URLSearchParams(window.location.search);
+  activeCategory = normalizeCategoryFilter(params.get('category'));
+  syncActiveCategoryPills();
+}
+
+function initMenuDropdowns(){
+  var menuItems = document.querySelectorAll('.menu-item');
+  if(!menuItems.length) return;
+
+  function closeAllDropdowns(){
+    menuItems.forEach(function(item){ item.classList.remove('open'); });
+  }
+
+  menuItems.forEach(function(item){
+    item.addEventListener('mouseenter', function(){
+      closeAllDropdowns();
+      item.classList.add('open');
+    });
+    item.addEventListener('focusin', function(){
+      closeAllDropdowns();
+      item.classList.add('open');
+    });
+  });
+
+  document.addEventListener('click', function(e){
+    var clickedItem = e.target.closest('.menu-item');
+    if(clickedItem){
+      menuItems.forEach(function(item){
+        item.classList.toggle('open', item === clickedItem);
+      });
+      return;
+    }
+    closeAllDropdowns();
+  });
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeAllDropdowns();
+  });
+}
+
+function getProductById(id){
+  return PRODUCTS.find(function(item){ return item.id === id; }) || null;
+}
+
+function getProductUrl(id){
+  return 'product.html?product=' + encodeURIComponent(id);
+}
+
+function navigateToProductPage(id){
+  if(!id) return;
+  window.location.href = getProductUrl(id);
+}
+
+function escapeHtml(value){
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildProductDescription(product){
+  return [
+    product.description,
+    'Prepared for ' + product.category.toLowerCase() + ' workflows where purity, repeatability, and documented handling matter.',
+    'Each order is packaged for controlled laboratory storage and batch traceability.'
+  ].join(' ');
+}
+
+function buildProductDisclaimer(product){
+  return [
+    product.name + ' is supplied strictly for laboratory research use only.',
+    'Not for human or veterinary use, ingestion, injection, or any household application.',
+    'Researchers are responsible for qualified handling, storage, and compliance with local regulations before use.'
+  ].join(' ');
+}
+
+function getUpsellProducts(product, limit){
+  return PRODUCTS.filter(function(item){
+    return item.id !== product.id && item.category !== product.category;
+  }).slice(0, limit);
+}
+
+function getRelatedProducts(product, limit){
+  var matches = PRODUCTS.filter(function(item){
+    return item.id !== product.id && item.category === product.category;
+  });
+  if(matches.length >= limit) return matches.slice(0, limit);
+  return matches.concat(PRODUCTS.filter(function(item){
+    return item.id !== product.id && item.category !== product.category;
+  })).slice(0, limit);
+}
+
+function renderProductCards(products, options){
+  var settings = options || {};
+  var viewLabel = settings.viewLabel || 'View Details';
+  return products.map(function(p){
+    return '<div class="product-card" data-id="'+p.id+'" role="button" tabindex="0">'+
+      '<div class="product-card-media"></div><div class="product-card-body">'+
+      '<div class="product-card-meta"><span class="label">'+p.category+'</span><span class="price">$'+p.price.toFixed(2)+'</span></div>'+
+      '<h3>'+p.name+'</h3>'+
+      '<p class="excerpt">'+p.description+'</p>'+
+      '<div class="product-card-actions"><button class="btn primary add-btn" data-id="'+p.id+'">Add to Cart</button><button class="btn ghost quick-btn" type="button" data-id="'+p.id+'">'+viewLabel+'</button></div>'+
+      '</div></div>';
+  }).join('');
+}
+
+function attachProductCardInteractions(container){
+  if(!container) return;
+  container.querySelectorAll('.product-card').forEach(function(card){
+    card.addEventListener('click', function(e){
+      if(e.target.closest('.add-btn') || e.target.closest('.quick-btn')) return;
+      navigateToProductPage(card.getAttribute('data-id'));
+    });
+    card.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        navigateToProductPage(card.getAttribute('data-id'));
+      }
+    });
+  });
+  container.querySelectorAll('.add-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      addToCart(btn.getAttribute('data-id'));
+      btn.textContent = 'Added ✓';
+      btn.classList.add('added');
+      setTimeout(function(){ btn.textContent='Add to Cart'; btn.classList.remove('added'); }, 1200);
+    });
+  });
+  container.querySelectorAll('.quick-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      navigateToProductPage(btn.getAttribute('data-id'));
+    });
+  });
+}
 
 function openProductModal(id){
   selectedProductId = id;
-  var product = PRODUCTS.find(function(item){ return item.id === id; });
+  var product = getProductById(id);
   if(!product) return;
   var modal = document.getElementById('productModal');
   if(!modal) return;
@@ -59,52 +217,81 @@ function renderProducts(filter){
   } else if(activeSort === 'priceDesc'){
     visible.sort(function(a,b){return b.price - a.price;});
   }
-  grid.innerHTML = visible.map(function(p){
-    return '<div class="product-card" data-id="'+p.id+'" role="button" tabindex="0">'+
-      '<div class="product-card-media"></div><div class="product-card-body">'+
-      '<div class="product-card-meta"><span class="label">'+p.category+'</span><span class="price">$'+p.price.toFixed(2)+'</span></div>'+ 
-      '<h3>'+p.name+'</h3>'+ 
-      '<p class="excerpt">'+p.description+'</p>'+ 
-      '<div class="product-card-actions"><button class="btn primary add-btn" data-id="'+p.id+'">Add to Cart</button><button class="btn ghost quick-btn" type="button" data-id="'+p.id+'">View</button></div>'+ 
-      '</div></div>';
-  }).join('');
+  grid.innerHTML = renderProductCards(visible, { viewLabel: 'View Details' });
   if(!visible.length){
     grid.innerHTML = '<div class="review-empty">No products match your search.</div>';
     return;
   }
-  grid.querySelectorAll('.product-card').forEach(function(card){
-    card.addEventListener('click', function(e){
-      if(e.target.closest('.add-btn') || e.target.closest('.quick-btn')) return;
-      openProductModal(card.getAttribute('data-id'));
-    });
-    card.addEventListener('keydown', function(e){
-      if(e.key === 'Enter' || e.key === ' '){
-        e.preventDefault();
-        openProductModal(card.getAttribute('data-id'));
-      }
-    });
-  });
-  grid.querySelectorAll('.add-btn').forEach(function(btn){
-    btn.addEventListener('click', function(e){
-      e.stopPropagation();
-      addToCart(btn.getAttribute('data-id'));
-      btn.textContent = 'Added ✓';
-      btn.classList.add('added');
-      setTimeout(function(){ btn.textContent='Add to Cart'; btn.classList.remove('added'); }, 1200);
-    });
-  });
-  grid.querySelectorAll('.quick-btn').forEach(function(btn){
-    btn.addEventListener('click', function(e){
-      e.stopPropagation();
-      openProductModal(btn.getAttribute('data-id'));
-    });
-  });
+  attachProductCardInteractions(grid);
 }
 
 function closeProductModal(){
   var modal = document.getElementById('productModal');
   if(modal) modal.classList.remove('show');
-  document.getElementById('backdrop').classList.remove('show');
+  var backdrop = document.getElementById('backdrop');
+  if(backdrop) backdrop.classList.remove('show');
+}
+
+function renderProductRail(containerId, products){
+  var container = document.getElementById(containerId);
+  if(!container) return;
+  container.innerHTML = renderProductCards(products, { viewLabel: 'View Details' });
+  attachProductCardInteractions(container);
+}
+
+function renderProductDetailPage(){
+  var page = document.querySelector('[data-product-detail-page]');
+  if(!page) return;
+
+  var params = new URLSearchParams(window.location.search);
+  var product = getProductById(params.get('product')) || PRODUCTS[0];
+  var titleEl = document.getElementById('productDetailTitle');
+  var tagEl = document.getElementById('productDetailTag');
+  var priceEl = document.getElementById('productDetailPrice');
+  var breadcrumbEl = document.getElementById('productDetailBreadcrumb');
+  var summaryEl = document.getElementById('productDetailSummary');
+  var descPanel = document.getElementById('productTabPanel');
+  var qtyEl = document.getElementById('productDetailQty');
+  var addBtn = document.getElementById('productDetailAddBtn');
+  var tabs = page.querySelectorAll('[data-detail-tab]');
+  var tabContent = {
+    description: buildProductDescription(product),
+    disclaimer: buildProductDisclaimer(product)
+  };
+
+  document.title = product.name + ' | PepX Research Chemicals';
+  if(titleEl) titleEl.textContent = product.name;
+  if(tagEl) tagEl.textContent = product.tag;
+  if(priceEl) priceEl.textContent = '$' + product.price.toFixed(2);
+  if(breadcrumbEl) breadcrumbEl.textContent = product.name;
+  if(summaryEl) summaryEl.textContent = product.description;
+
+  function setActiveTab(tabName){
+    tabs.forEach(function(tab){
+      tab.classList.toggle('active', tab.getAttribute('data-detail-tab') === tabName);
+    });
+    if(descPanel) descPanel.innerHTML = '<p>' + escapeHtml(tabContent[tabName] || '') + '</p>';
+  }
+
+  tabs.forEach(function(tab){
+    tab.addEventListener('click', function(){
+      setActiveTab(tab.getAttribute('data-detail-tab'));
+    });
+  });
+  setActiveTab('description');
+
+  if(addBtn){
+    addBtn.addEventListener('click', function(){
+      var qty = qtyEl ? Math.max(1, parseInt(qtyEl.value, 10) || 1) : 1;
+      cart[product.id] = (cart[product.id] || 0) + qty;
+      renderCart();
+      saveCart();
+      showToast(qty + ' × ' + product.name + ' added to cart');
+    });
+  }
+
+  renderProductRail('upsellGrid', getUpsellProducts(product, 3));
+  renderProductRail('relatedGrid', getRelatedProducts(product, 3));
 }
 
 function addSelectedProductToCart(){
@@ -206,6 +393,308 @@ function submitForm(e){
   return false;
 }
 
+// ---------- Account auth ----------
+function authApi(path, options){
+  var request = options || {};
+  request.credentials = 'include';
+  request.headers = request.headers || {};
+  if(!(request.body instanceof FormData)){
+    request.headers['Content-Type'] = request.headers['Content-Type'] || 'application/json';
+  }
+
+  return fetch(path, request).then(function(res){
+    return res.json().catch(function(){ return {}; }).then(function(data){
+      if(!res.ok){
+        var error = new Error(data.error || 'Request failed');
+        error.status = res.status;
+        throw error;
+      }
+      return data;
+    });
+  });
+}
+
+function loadAuthSession(){
+  return authApi('/api/auth/session', { method:'GET' }).then(function(data){
+    currentAuthSession = data.user || null;
+    return currentAuthSession;
+  }).catch(function(){
+    currentAuthSession = null;
+    return null;
+  });
+}
+
+function normalizeEmail(email){
+  return (email || '').toString().trim().toLowerCase();
+}
+
+function ensureAuthModal(){
+  if(document.getElementById('authModal')) return;
+  var wrapper = document.createElement('div');
+  wrapper.id = 'authModal';
+  wrapper.className = 'auth-modal';
+  wrapper.setAttribute('aria-hidden', 'true');
+  wrapper.innerHTML = ''+
+    '<div class="auth-modal-backdrop" data-auth-close="1"></div>'+
+    '<div class="auth-modal-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">'+
+      '<button type="button" class="auth-close" id="authCloseBtn" aria-label="Close account panel">&times;</button>'+
+      '<h3 id="authTitle">Your Account</h3>'+
+      '<p class="auth-sub">Create an account or sign in to continue.</p>'+
+      '<div class="auth-tabs">'+
+        '<button type="button" class="auth-tab active" data-auth-tab="signup">Sign Up</button>'+
+        '<button type="button" class="auth-tab" data-auth-tab="login">Log In</button>'+
+      '</div>'+
+      '<div class="auth-body">'+
+        '<div class="auth-panel" id="authSignedPanel" style="display:none"></div>'+
+        '<div class="auth-panel" id="authSignupPanel">'+
+          '<button type="button" class="google-auth-btn" id="googleSignupBtn">Continue with Google</button>'+
+          '<div class="auth-divider"><span>or use your email</span></div>'+
+          '<form id="signupForm" class="auth-form" autocomplete="on">'+
+            '<label><span>Full Name</span><input type="text" name="name" required></label>'+
+            '<label><span>Email</span><input type="email" name="email" required></label>'+
+            '<label><span>Password</span><input type="password" name="password" minlength="8" required></label>'+
+            '<label><span>Institution Type</span>'+
+              '<select name="institution" required>'+
+                '<option value="">Select institution type...</option>'+
+                '<option value="University / Academic">University / Academic</option>'+
+                '<option value="Research Laboratory">Research Laboratory</option>'+
+                '<option value="Clinical / Medical Facility">Clinical / Medical Facility</option>'+
+                '<option value="Biotech / Pharmaceutical Company">Biotech / Pharmaceutical Company</option>'+
+                '<option value="Government Agency">Government Agency</option>'+
+                '<option value="Independent Researcher">Independent Researcher</option>'+
+                '<option value="Other">Other</option>'+
+              '</select>'+
+            '</label>'+
+            '<button type="submit" class="btn primary">Create Account</button>'+
+          '</form>'+
+        '</div>'+
+        '<div class="auth-panel" id="authLoginPanel" style="display:none">'+
+          '<button type="button" class="google-auth-btn" id="googleLoginBtn">Continue with Google</button>'+
+          '<div class="auth-divider"><span>or log in with email</span></div>'+
+          '<form id="loginForm" class="auth-form" autocomplete="on">'+
+            '<label><span>Email</span><input type="email" name="email" required></label>'+
+            '<label><span>Password</span><input type="password" name="password" required></label>'+
+            '<button type="submit" class="btn primary">Log In</button>'+
+          '</form>'+
+        '</div>'+
+        '<p class="auth-message" id="authMessage" aria-live="polite"></p>'+
+      '</div>'+
+    '</div>';
+  document.body.appendChild(wrapper);
+}
+
+function setAuthMessage(message, isError){
+  var el = document.getElementById('authMessage');
+  if(!el) return;
+  el.textContent = message || '';
+  el.classList.toggle('error', !!isError);
+  el.classList.toggle('success', !!message && !isError);
+}
+
+function switchAuthTab(tab){
+  var signupPanel = document.getElementById('authSignupPanel');
+  var loginPanel = document.getElementById('authLoginPanel');
+  var signedPanel = document.getElementById('authSignedPanel');
+  if(!signupPanel || !loginPanel || !signedPanel) return;
+  signedPanel.style.display = 'none';
+  signupPanel.style.display = tab === 'signup' ? 'block' : 'none';
+  loginPanel.style.display = tab === 'login' ? 'block' : 'none';
+  document.querySelectorAll('.auth-tab').forEach(function(btn){
+    btn.classList.toggle('active', btn.getAttribute('data-auth-tab') === tab);
+  });
+}
+
+function renderSignedInPanel(session){
+  var signedPanel = document.getElementById('authSignedPanel');
+  if(!signedPanel) return;
+  signedPanel.innerHTML = ''+
+    '<div class="signed-box">'+
+      '<p><strong>Signed in as:</strong> ' + session.name + '</p>'+
+      '<p><strong>Email:</strong> ' + session.email + '</p>'+
+      '<p><strong>Institution:</strong> ' + (session.institution || 'Not set') + '</p>'+
+      '<p><strong>Method:</strong> ' + session.provider + '</p>'+
+      '<button type="button" class="btn ghost" id="logoutBtn">Log Out</button>'+
+    '</div>';
+  signedPanel.style.display = 'block';
+  var signupPanel = document.getElementById('authSignupPanel');
+  var loginPanel = document.getElementById('authLoginPanel');
+  if(signupPanel) signupPanel.style.display = 'none';
+  if(loginPanel) loginPanel.style.display = 'none';
+  document.querySelectorAll('.auth-tab').forEach(function(btn){ btn.classList.remove('active'); });
+  var logoutBtn = document.getElementById('logoutBtn');
+  if(logoutBtn){
+    logoutBtn.addEventListener('click', function(){
+      authApi('/api/auth/logout', { method:'POST' }).then(function(){
+        currentAuthSession = null;
+        setAuthMessage('Logged out successfully.', false);
+        switchAuthTab('login');
+        updateAccountButtonState();
+      }).catch(function(err){
+        setAuthMessage(err.message || 'Logout failed.', true);
+      });
+    });
+  }
+}
+
+function openAuthModal(defaultTab){
+  ensureAuthModal();
+  var modal = document.getElementById('authModal');
+  if(!modal) return;
+
+  loadAuthSession().then(function(session){
+    if(session){
+      renderSignedInPanel(session);
+    } else {
+      switchAuthTab(defaultTab || 'signup');
+    }
+    setAuthMessage('', false);
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('locked');
+  });
+}
+
+function closeAuthModal(){
+  var modal = document.getElementById('authModal');
+  if(!modal) return;
+  modal.classList.remove('show');
+  modal.setAttribute('aria-hidden', 'true');
+  if(!document.getElementById('gate') || document.getElementById('gate').classList.contains('hidden')){
+    document.body.classList.remove('locked');
+  }
+}
+
+function handleGoogleAuth(){
+  window.location.href = '/auth/google';
+}
+
+function updateAccountButtonState(){
+  var accountBtn = document.getElementById('accountBtn');
+  if(!accountBtn) return;
+  var session = currentAuthSession;
+  if(session){
+    accountBtn.setAttribute('title', 'Account: ' + session.name);
+    accountBtn.setAttribute('aria-label', 'Account: signed in as ' + session.name);
+    accountBtn.classList.add('signed-in');
+  } else {
+    accountBtn.setAttribute('title', 'Account');
+    accountBtn.setAttribute('aria-label', 'Account');
+    accountBtn.classList.remove('signed-in');
+  }
+}
+
+function initAuth(){
+  ensureAuthModal();
+  var modal = document.getElementById('authModal');
+  if(!modal) return;
+
+  loadAuthSession().then(function(){
+    updateAccountButtonState();
+
+    var params = new URLSearchParams(window.location.search);
+    var authState = params.get('auth');
+    if(authState === 'google-success'){
+      showToast('Google sign-in successful.');
+    } else if(authState === 'google-failed'){
+      showToast('Google sign-in failed. Please try again.');
+    } else if(authState === 'google-not-configured'){
+      showToast('Google sign-in is not configured yet.');
+    }
+
+    if(authState){
+      params.delete('auth');
+      var next = window.location.pathname + (params.toString() ? ('?' + params.toString()) : '') + window.location.hash;
+      window.history.replaceState({}, '', next);
+    }
+  });
+
+  modal.addEventListener('click', function(e){
+    if(e.target.matches('[data-auth-close="1"]')) closeAuthModal();
+  });
+  var closeBtn = document.getElementById('authCloseBtn');
+  if(closeBtn){ closeBtn.addEventListener('click', closeAuthModal); }
+
+  document.querySelectorAll('.auth-tab').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      switchAuthTab(btn.getAttribute('data-auth-tab'));
+      setAuthMessage('', false);
+    });
+  });
+
+  var signupForm = document.getElementById('signupForm');
+  if(signupForm){
+    signupForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var fd = new FormData(signupForm);
+      var name = (fd.get('name') || '').toString().trim();
+      var email = normalizeEmail(fd.get('email'));
+      var password = (fd.get('password') || '').toString();
+      var institution = (fd.get('institution') || '').toString();
+
+      if(!name || !email || !password || !institution){
+        setAuthMessage('All signup fields are required.', true);
+        return;
+      }
+      if(password.length < 8){
+        setAuthMessage('Password must be at least 8 characters.', true);
+        return;
+      }
+
+      authApi('/api/auth/signup', {
+        method:'POST',
+        body: JSON.stringify({
+          name: name,
+          email: email,
+          password: password,
+          institution: institution
+        })
+      }).then(function(data){
+        currentAuthSession = data.user;
+        setAuthMessage('Account created successfully.', false);
+        signupForm.reset();
+        renderSignedInPanel(currentAuthSession);
+        updateAccountButtonState();
+        showToast('Welcome, ' + currentAuthSession.name + '!');
+      }).catch(function(err){
+        setAuthMessage(err.message || 'Signup failed.', true);
+      });
+    });
+  }
+
+  var loginForm = document.getElementById('loginForm');
+  if(loginForm){
+    loginForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var fd = new FormData(loginForm);
+      var email = normalizeEmail(fd.get('email'));
+      var password = (fd.get('password') || '').toString();
+
+      authApi('/api/auth/login', {
+        method:'POST',
+        body: JSON.stringify({ email: email, password: password })
+      }).then(function(data){
+        currentAuthSession = data.user;
+        loginForm.reset();
+        setAuthMessage('Login successful.', false);
+        renderSignedInPanel(currentAuthSession);
+        updateAccountButtonState();
+        showToast('Welcome back, ' + currentAuthSession.name + '!');
+      }).catch(function(err){
+        setAuthMessage(err.message || 'Login failed.', true);
+      });
+    });
+  }
+
+  var googleSignupBtn = document.getElementById('googleSignupBtn');
+  if(googleSignupBtn){ googleSignupBtn.addEventListener('click', handleGoogleAuth); }
+  var googleLoginBtn = document.getElementById('googleLoginBtn');
+  if(googleLoginBtn){ googleLoginBtn.addEventListener('click', handleGoogleAuth); }
+
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeAuthModal();
+  });
+}
+
 // ---------- Reviews ----------
 var reviews = [];
 
@@ -248,11 +737,29 @@ function addReview(form){
 function initGate(){
   var overlay = document.getElementById('gate');
   if(!overlay) return;
+
+  var hasAcceptedGate = false;
+  try {
+    hasAcceptedGate = window.localStorage.getItem(GATE_ACCEPTED_KEY) === 'true';
+  } catch (err) {
+    hasAcceptedGate = false;
+  }
+
+  if(hasAcceptedGate){
+    overlay.classList.add('hidden');
+    document.body.classList.remove('locked');
+    return;
+  }
+
   document.body.classList.add('locked');
   var r=document.getElementById('g-research'), a=document.getElementById('g-age'), i=document.getElementById('g-inst'), e=document.getElementById('g-enter');
   function v(){ e.disabled = !(r.checked && a.checked && i.value); }
   [r,a,i].forEach(function(el){ el.addEventListener('change', v); });
-  e.addEventListener('click', function(){ overlay.classList.add('hidden'); document.body.classList.remove('locked'); });
+  e.addEventListener('click', function(){
+    try { window.localStorage.setItem(GATE_ACCEPTED_KEY, 'true'); } catch (err) {}
+    overlay.classList.add('hidden');
+    document.body.classList.remove('locked');
+  });
   var d=document.getElementById('g-decline');
   if(d) d.addEventListener('click', function(){ window.location.href='https://www.google.com'; });
   v();
@@ -261,9 +768,13 @@ function initGate(){
 // ---------- Init ----------
 window.addEventListener('DOMContentLoaded', function(){
   loadCart();
+  initShopCategoryFromUrl();
+  initMenuDropdowns();
   renderProducts();
   renderCart();
+  renderProductDetailPage();
   initGate();
+  initAuth();
 
   // FAQ accordion
   document.addEventListener('click', function(e){
@@ -326,9 +837,8 @@ window.addEventListener('DOMContentLoaded', function(){
 
   document.querySelectorAll('.pill').forEach(function(btn){
     btn.addEventListener('click', function(){
-      document.querySelectorAll('.pill').forEach(function(item){ item.classList.remove('active'); });
-      btn.classList.add('active');
       activeCategory = btn.getAttribute('data-filter');
+      syncActiveCategoryPills();
       renderProducts(searchInput ? searchInput.value : '');
     });
   });
@@ -348,9 +858,7 @@ window.addEventListener('DOMContentLoaded', function(){
   var accountBtn = document.getElementById('accountBtn');
   if(accountBtn){
     accountBtn.addEventListener('click', function(){
-      var contactSection = document.getElementById('contact');
-      if(contactSection){ contactSection.scrollIntoView({behavior:'smooth'}); }
-      showToast('Sign-in coming soon \u2014 contact us for account access');
+      openAuthModal('signup');
     });
   }
   var checkoutBtnEl = document.getElementById('checkoutBtn');
