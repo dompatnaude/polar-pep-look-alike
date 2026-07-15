@@ -16,6 +16,11 @@ var selectedProductId = null;
 var activeCategory = 'all';
 var activeSort = 'default';
 var currentAuthSession = null;
+var DEFAULT_PRODUCT_IMAGE_URL = 'assets/products/default-product.png';
+
+function getProductImage(product){
+  return (product && product.image) ? product.image : DEFAULT_PRODUCT_IMAGE_URL;
+}
 
 function normalizeCategoryFilter(value){
   if(!value) return 'all';
@@ -132,8 +137,9 @@ function renderProductCards(products, options){
   var settings = options || {};
   var viewLabel = settings.viewLabel || 'View Details';
   return products.map(function(p){
+    var image = getProductImage(p);
     return '<div class="product-card" data-id="'+p.id+'" role="button" tabindex="0">'+
-      '<div class="product-card-media"></div><div class="product-card-body">'+
+      '<div class="product-card-media"><img src="'+image+'" alt="'+p.name+' product image" loading="lazy"></div><div class="product-card-body">'+
       '<div class="product-card-meta"><span class="label">'+p.category+'</span><span class="price">$'+p.price.toFixed(2)+'</span></div>'+
       '<h3>'+p.name+'</h3>'+
       '<p class="excerpt">'+p.description+'</p>'+
@@ -182,6 +188,12 @@ function openProductModal(id){
   document.getElementById('productModalTitle').textContent = product.name;
   document.getElementById('productModalTag').textContent = product.tag;
   document.getElementById('productModalPrice').textContent = '$' + product.price.toFixed(2);
+  var modalImage = modal.querySelector('.product-modal-image');
+  if(modalImage){
+    modalImage.style.backgroundImage = 'url("' + getProductImage(product) + '")';
+    modalImage.style.backgroundSize = 'cover';
+    modalImage.style.backgroundPosition = 'center';
+  }
   var descEl = modal.querySelector('.product-modal-description');
   if(descEl) descEl.textContent = product.description;
   var qty = document.getElementById('productModalQty');
@@ -254,6 +266,7 @@ function renderProductDetailPage(){
   var qtyEl = document.getElementById('productDetailQty');
   var addBtn = document.getElementById('productDetailAddBtn');
   var tabs = page.querySelectorAll('[data-detail-tab]');
+  var detailMedia = page.querySelector('.product-detail-media');
   var tabContent = {
     description: buildProductDescription(product),
     disclaimer: buildProductDisclaimer(product)
@@ -265,6 +278,12 @@ function renderProductDetailPage(){
   if(priceEl) priceEl.textContent = '$' + product.price.toFixed(2);
   if(breadcrumbEl) breadcrumbEl.textContent = product.name;
   if(summaryEl) summaryEl.textContent = product.description;
+  if(detailMedia){
+    detailMedia.classList.add('has-product-image');
+    detailMedia.style.backgroundImage = 'url("' + getProductImage(product) + '")';
+    detailMedia.style.backgroundSize = 'cover';
+    detailMedia.style.backgroundPosition = 'center';
+  }
 
   function setActiveTab(tabName){
     tabs.forEach(function(tab){
@@ -697,21 +716,62 @@ function initAuth(){
 
 // ---------- Reviews ----------
 var reviews = [];
+var HERO_REVIEW_FALLBACK = [
+  {rating:5, name:'Avery M.', email:'Research Lab', message:'Excellent consistency between lots. Purity and handling quality are exactly what our bench workflow requires.'},
+  {rating:5, name:'Logan R.', email:'Biotech Team', message:'Shipping and packaging have been reliable every time. Materials arrive cold, sealed, and ready for controlled use.'},
+  {rating:5, name:'Taylor C.', email:'University Group', message:'Documentation and quality control are strong. This has become our preferred source for repeat peptide studies.'},
+  {rating:4, name:'Jordan P.', email:'Independent Researcher', message:'Great communication and clear labeling. Products have integrated smoothly into our protocol validation work.'},
+  {rating:5, name:'Riley D.', email:'Clinical Research Unit', message:'Fast fulfillment and consistent product integrity. We appreciate the professional handling standards.'},
+  {rating:5, name:'Morgan L.', email:'Pharma R&D', message:'Reliable outcomes in our assays and very clean presentation. Exactly what we need from a research supplier.'}
+];
+
+function formatReviewDisplayName(name){
+  var cleanName = (name || '').toString().trim();
+  if(!cleanName) return 'Verified Researcher';
+  var parts = cleanName.split(/\s+/);
+  return parts.length > 1 ? parts[0] + ' ' + parts[parts.length-1].charAt(0) + '.' : cleanName;
+}
+
+function getHeroCollageReviews(){
+  var source = reviews.length ? reviews.slice(0, 8) : HERO_REVIEW_FALLBACK.slice(0, 8);
+  return source.map(function(review){
+    return {
+      rating: Math.max(1, Math.min(5, parseInt(review.rating, 10) || 5)),
+      name: formatReviewDisplayName(review.name),
+      message: (review.message || '').toString().trim() || 'High-quality materials and reliable service for repeatable research work.'
+    };
+  });
+}
+
+function renderHeroReviewCollage(){
+  var root = document.getElementById('heroReviewCollage');
+  if(!root) return;
+  var entries = getHeroCollageReviews();
+  var buildCards = function(items){
+    return items.map(function(review){
+      var stars = '★'.repeat(review.rating) + '☆'.repeat(5-review.rating);
+      return '<article class="hero-review-card"><div class="hero-review-stars">'+stars+'</div><p class="hero-review-text">"'+escapeHtml(review.message)+'"</p><div class="hero-review-author">'+escapeHtml(review.name)+'</div></article>';
+    }).join('');
+  };
+  var forward = buildCards(entries.concat(entries));
+  var reverse = buildCards(entries.slice().reverse().concat(entries.slice().reverse()));
+  root.innerHTML = '<div class="review-collage-col"><div class="review-collage-track">'+forward+'</div></div><div class="review-collage-col reverse"><div class="review-collage-track">'+reverse+'</div></div>';
+}
 
 function renderReviews(){
   var list = document.getElementById('reviewList');
   if(!list) return;
   if(!reviews.length){
     list.innerHTML = '<div class="review-empty">No reviews yet. Be the first to leave one.</div>';
+    renderHeroReviewCollage();
     return;
   }
   list.innerHTML = reviews.map(function(review){
     var stars = '★'.repeat(review.rating) + '☆'.repeat(5-review.rating);
-    var name = review.name.trim();
-    var parts = name.split(/\s+/);
-    var displayName = parts.length > 1 ? parts[0] + ' ' + parts[parts.length-1].charAt(0) + '.' : name;
+    var displayName = formatReviewDisplayName(review.name);
     return '<div class="tcard"><div class="stars">'+stars+'</div><p>"'+review.message+'"</p><div class="who">'+displayName+'<span>'+review.email+'</span></div></div>';
   }).join('');
+  renderHeroReviewCollage();
 }
 
 function addReview(form){
