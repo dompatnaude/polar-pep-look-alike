@@ -281,6 +281,67 @@ function renderProductRail(containerId, products){
   attachProductCardInteractions(container);
 }
 
+function renderHeroBestSellers(){
+  var rail = document.getElementById('heroBestSellers');
+  var prev = document.getElementById('heroBestPrev');
+  var next = document.getElementById('heroBestNext');
+  if(!rail || !prev || !next) return;
+  var featured = PRODUCTS.slice(0, 6);
+  if(!featured.length) return;
+
+  var activeIndex = 0;
+  var isAnimating = false;
+  var TRANSITION_MS = 220;
+
+  function draw(){
+    var product = featured[activeIndex];
+    rail.innerHTML = '<a class="hero-best-card" href="'+getProductUrl(product.id)+'" aria-label="'+escapeHtml(product.name)+' details">'+
+      '<img class="hero-best-image" src="'+getProductImage(product)+'" alt="'+escapeHtml(product.name)+' product image" loading="lazy">'+
+      '<p class="hero-best-title">'+escapeHtml(product.name)+'</p>'+
+      '<p class="hero-best-price">$'+product.price.toFixed(2)+'</p>'+
+    '</a>';
+  }
+
+  function clearAnimationClasses(){
+    rail.classList.remove('is-exit-left', 'is-exit-right', 'is-enter-left', 'is-enter-right');
+  }
+
+  function animateTo(delta){
+    if(isAnimating) return;
+    isAnimating = true;
+
+    var exitClass = delta > 0 ? 'is-exit-left' : 'is-exit-right';
+    var enterClass = delta > 0 ? 'is-enter-right' : 'is-enter-left';
+
+    clearAnimationClasses();
+    rail.classList.add(exitClass);
+
+    window.setTimeout(function(){
+      activeIndex = (activeIndex + delta + featured.length) % featured.length;
+      draw();
+      clearAnimationClasses();
+      rail.classList.add(enterClass);
+      // Force reflow so removing enter class triggers a smooth transition to default state.
+      rail.offsetWidth;
+      rail.classList.remove(enterClass);
+
+      window.setTimeout(function(){
+        isAnimating = false;
+      }, TRANSITION_MS);
+    }, TRANSITION_MS);
+  }
+
+  prev.addEventListener('click', function(){
+    animateTo(-1);
+  });
+
+  next.addEventListener('click', function(){
+    animateTo(1);
+  });
+
+  draw();
+}
+
 function renderProductDetailPage(){
   var page = document.querySelector('[data-product-detail-page]');
   if(!page) return;
@@ -1060,6 +1121,7 @@ window.addEventListener('DOMContentLoaded', function(){
   initMenuDropdowns();
   initMobileNav();
   renderProducts();
+  renderHeroBestSellers();
   renderCart();
   renderProductDetailPage();
   initAccountPage();
