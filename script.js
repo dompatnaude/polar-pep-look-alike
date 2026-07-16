@@ -494,7 +494,6 @@ function renderProductDetailPage(){
   } else {
     if(titleEl) titleEl.textContent = displayName;
   }
-  if(titleEl && product.id !== 'klow_80') titleEl.textContent = displayName;
   if(tagEl) tagEl.textContent = product.tag;
   if(breadcrumbEl) breadcrumbEl.textContent = displayName;
   if(summaryEl) summaryEl.textContent = product.description;
