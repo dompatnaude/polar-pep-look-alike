@@ -1287,16 +1287,39 @@ function initGate(){
   var a = document.getElementById('g-age');
   var i = document.getElementById('g-inst');
   var e = document.getElementById('g-enter');
+  var h = document.getElementById('g-hint');
   
   if(!r || !a || !i || !e) return;
   
   function v(){
-    e.disabled = !(r.checked && a.checked && i.value);
+    var hasResearch = r.checked;
+    var hasAge = a.checked;
+    var hasInstitution = !!String(i.value || '').trim();
+    var canEnter = hasResearch && hasAge && hasInstitution;
+    e.disabled = !canEnter;
+
+    if(!h) return;
+    if(canEnter){
+      h.textContent = 'All set. You can enter the site.';
+      return;
+    }
+    if(!hasResearch){
+      h.textContent = 'Please confirm research-use-only compliance.';
+      return;
+    }
+    if(!hasAge){
+      h.textContent = 'Please confirm you are 21 years of age or older.';
+      return;
+    }
+    h.textContent = 'Please select your institution type.';
   }
-  
-  r.addEventListener('change', v);
-  a.addEventListener('change', v);
-  i.addEventListener('change', v);
+
+  // Mobile browsers can emit different events for checkboxes/select pickers.
+  ['change', 'input', 'click'].forEach(function(evt){
+    r.addEventListener(evt, v);
+    a.addEventListener(evt, v);
+    i.addEventListener(evt, v);
+  });
   
   e.addEventListener('click', function(){
     try { window.localStorage.setItem(GATE_ACCEPTED_KEY, 'true'); } catch (err) {}

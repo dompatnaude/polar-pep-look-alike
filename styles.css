@@ -472,9 +472,15 @@ footer .logo .logo-sub{transform:none;}
 .modal select:focus{outline:none;border-color:var(--blue);}
 .modal .enter{width:100%;justify-content:center;}
 .modal .enter:disabled{background:#c3c8e0;cursor:not-allowed;}
+.gate-hint{min-height:20px;margin-top:10px;color:#6b7280;font-size:13px;line-height:1.35;text-align:left;}
 .modal .decline{display:block;text-align:center;color:var(--muted);font-size:13px;margin-top:16px;cursor:pointer;background:none;border:none;width:100%;}
 .modal .legal{color:var(--muted);font-size:12px;margin-top:18px;text-align:center;}
 body.locked{overflow:hidden;}
+
+@media(max-width:720px){
+	.overlay{align-items:flex-start;padding:14px;overflow:auto;-webkit-overflow-scrolling:touch;}
+	.modal{padding:20px;max-height:calc(100dvh - 28px);overflow:auto;}
+}
 
 /* Interactive: cart, buttons, toast */
 .icons span{cursor:pointer;transition:.15s;}
