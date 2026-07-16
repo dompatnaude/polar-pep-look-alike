@@ -618,6 +618,15 @@ body.locked{overflow:hidden;}
 	.product-detail-copy{padding:20px;}
 	.product-detail-copy h1{font-size:30px;}
 	.product-detail-price{font-size:26px;}
+	.product-detail-price{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;line-height:1.15;}
+	.product-detail-price .price-normal{margin-right:0;font-size:.62em;}
+	.product-detail-dose select,.product-detail-qty input{font-size:14px;padding:12px;}
+	.product-savings-chart{padding:14px;border-radius:16px;}
+	.product-savings-chart h2{font-size:21px;}
+	.product-savings-chart .sub{font-size:13px;line-height:1.5;}
+	.savings-table{min-width:0;table-layout:fixed;}
+	.savings-table th,.savings-table td{padding:9px 6px;font-size:12px;}
+	.savings-table th{font-size:10px;letter-spacing:.04em;}
 
 	.policy-page-shell{padding:26px 0 48px;}
 	.policy-page-card{padding:22px;border-radius:20px;}

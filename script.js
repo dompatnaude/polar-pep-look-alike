@@ -1,7 +1,7 @@
 // ---------- Product data ----------
 var PRODUCTS = [
   {id:'bpc157', name:'BPC-157', tag:'ACCELERATED RECOVERY', color:'#e8fbef;color:#16a34a', category:'Recovery', description:'Advanced peptide formula designed to support faster tissue repair and recovery.', price:92.99},
-  {id:'glp3', name:'GLP-3RT', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'A precision peptide blend for metabolic balance and gentle appetite support.', price:169.99},
+  {id:'glp3', name:'GLP-3RT', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'A precision peptide blend for metabolic balance and gentle appetite support.', price:75.00},
   {id:'ghkcu', name:'GHK-Cu', tag:'SKIN & TISSUE REPAIR', color:'#fdeef4;color:#db2777', category:'Repair', description:'Copper peptide complex targeted for skin repair and soft tissue regeneration.', price:49.99},
   {id:'cjc', name:'CJC-1295 + Ipamorelin', tag:'SUSTAINED GH RELEASE', color:'#fff4e5;color:#d97706', category:'Growth', description:'A sustained release peptide stack for deeper restorative support.', price:94.99},
   {id:'motsc', name:'MOTS-c', tag:'MITOCHONDRIAL SUPPORT', color:'#e8fbef;color:#16a34a', category:'Cellular', description:'Cellular energy peptide engineered to support mitochondrial function.', price:64.99},
@@ -149,7 +149,8 @@ function renderSavingsRows(product){
     var qty = level === '10+' ? 10 : level;
     var pricing = getQuantityPricing(product.price, qty);
     var discountedLabel = level === '10+' ? ('$' + pricing.discountedTotal.toFixed(2) + '+') : ('$' + pricing.discountedTotal.toFixed(2));
-    return '<tr><td>' + level + '</td><td>' + discountedLabel + '</td></tr>';
+    var percentSaved = pricing.normalTotal > 0 ? Math.round(((pricing.normalTotal - pricing.discountedTotal) / pricing.normalTotal) * 100) : 0;
+    return '<tr><td>' + level + '</td><td>' + discountedLabel + '</td><td>' + percentSaved + '%</td></tr>';
   }).join('');
 }
 
@@ -163,6 +164,21 @@ function toggleAddToCartOption(addBtn, quantity){
 function navigateToProductPage(id){
   if(!id) return;
   window.location.href = getProductUrl(id);
+}
+
+function getInitialProductSearchQuery(){
+  try {
+    var params = new URLSearchParams(window.location.search);
+    return (params.get('q') || '').trim();
+  } catch (err) {
+    return '';
+  }
+}
+
+function goToShopSearch(query){
+  var term = (query || '').toString().trim();
+  var target = 'shop.html' + (term ? ('?q=' + encodeURIComponent(term)) : '');
+  window.location.href = target;
 }
 
 function escapeHtml(value){
@@ -1198,11 +1214,12 @@ function initGate(){
 
 // ---------- Init ----------
 window.addEventListener('DOMContentLoaded', function(){
+  var initialSearchQuery = getInitialProductSearchQuery();
   loadCart();
   initShopCategoryFromUrl();
   initMenuDropdowns();
   initMobileNav();
-  renderProducts();
+  renderProducts(initialSearchQuery);
   renderHeroBestSellers();
   renderCart();
   renderProductDetailPage();
@@ -1242,6 +1259,10 @@ window.addEventListener('DOMContentLoaded', function(){
   // Header + cart controls
   var searchWrap = document.getElementById('searchWrap');
   var searchInput = document.getElementById('productSearch');
+  if(searchInput && initialSearchQuery){
+    searchInput.value = initialSearchQuery;
+    if(searchWrap) searchWrap.classList.add('active');
+  }
   var cartBtn = document.getElementById('cartBtn');
   if(cartBtn && cartBtn.tagName === 'BUTTON'){
     cartBtn.addEventListener('click', openCart);
@@ -1257,10 +1278,26 @@ window.addEventListener('DOMContentLoaded', function(){
   var searchBtnEl = document.getElementById('searchBtn');
   if(searchBtnEl && searchWrap && searchInput){
     searchBtnEl.addEventListener('click', function(){
+      var query = searchInput.value.trim();
+      if(query){
+        goToShopSearch(query);
+        return;
+      }
       searchWrap.classList.add('active');
       searchInput.focus();
-      var productsSection = document.getElementById('products');
-      if(productsSection) productsSection.scrollIntoView({behavior:'smooth'});
+    });
+
+    searchInput.addEventListener('keydown', function(e){
+      if(e.key !== 'Enter') return;
+      e.preventDefault();
+      var query = searchInput.value.trim();
+      if(query){
+        goToShopSearch(query);
+        return;
+      }
+      if(window.location.pathname.endsWith('shop.html') || window.location.pathname === '/shop.html'){
+        renderProducts('');
+      }
     });
   }
   if(searchInput){

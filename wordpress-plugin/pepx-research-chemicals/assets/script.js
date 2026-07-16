@@ -4,7 +4,7 @@
 
   const products = [
     {id:'bpc157', name:'BPC-157', tag:'ACCELERATED RECOVERY', price:92.99, description:'Research-grade recovery peptide suited to laboratory review and formulation testing.'},
-    {id:'glp3', name:'GLP-3 Peptide', tag:'METABOLIC SUPPORT', price:169.99, description:'High-purity metabolic support compound for controlled research applications.'},
+    {id:'glp3', name:'GLP-3 Peptide', tag:'METABOLIC SUPPORT', price:75.00, description:'High-purity metabolic support compound for controlled research applications.'},
     {id:'ghkcu', name:'GHK-Cu', tag:'SKIN & TISSUE REPAIR', price:49.99, description:'A versatile peptide reagent for tissue repair and formulation studies.'},
     {id:'cjc', name:'CJC-1295 + Ipamorelin', tag:'SUSTAINED GH RELEASE', price:94.99, description:'A premium stack for advanced growth hormone pathway research.'},
     {id:'motsc', name:'MOTS-c', tag:'MITOCHONDRIAL SUPPORT', price:64.99, description:'A lab-use peptide product designed for mitochondrial research workflows.'},
