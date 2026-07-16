@@ -578,6 +578,7 @@ function renderSignedInPanel(session){
         setAuthMessage('Logged out successfully.', false);
         switchAuthTab('login');
         updateAccountButtonState();
+        window.dispatchEvent(new CustomEvent('pepx-auth-changed', { detail: { session: null } }));
       }).catch(function(err){
         setAuthMessage(err.message || 'Logout failed.', true);
       });
@@ -706,6 +707,7 @@ function initAuth(){
         signupForm.reset();
         renderSignedInPanel(currentAuthSession);
         updateAccountButtonState();
+        window.dispatchEvent(new CustomEvent('pepx-auth-changed', { detail: { session: currentAuthSession } }));
         showToast('Welcome, ' + currentAuthSession.name + '!');
       }).catch(function(err){
         setAuthMessage(err.message || 'Signup failed.', true);
@@ -730,6 +732,7 @@ function initAuth(){
         setAuthMessage('Login successful.', false);
         renderSignedInPanel(currentAuthSession);
         updateAccountButtonState();
+        window.dispatchEvent(new CustomEvent('pepx-auth-changed', { detail: { session: currentAuthSession } }));
         showToast('Welcome back, ' + currentAuthSession.name + '!');
       }).catch(function(err){
         setAuthMessage(err.message || 'Login failed.', true);
@@ -799,12 +802,22 @@ function initAccountPage(){
   var addressForm = document.getElementById('accountAddressForm');
   var passwordForm = document.getElementById('accountPasswordForm');
   var logoutBtn = document.getElementById('accountLogoutBtn');
+  var accountSections = page.querySelectorAll('.account-card, .account-grid');
 
   function setPageMessage(text, isError){
     if(!msg) return;
     msg.textContent = text || '';
     msg.classList.toggle('error', !!isError);
     msg.classList.toggle('success', !!text && !isError);
+  }
+
+  function setAccountLocked(locked){
+    accountSections.forEach(function(section){
+      section.style.display = locked ? 'none' : '';
+    });
+    if(logoutBtn){
+      logoutBtn.style.display = locked ? 'none' : '';
+    }
   }
 
   function loadOverview(){
@@ -824,13 +837,33 @@ function initAccountPage(){
     });
   }
 
-  loadAuthSession().then(function(session){
-    updateAccountButtonState();
+  window.addEventListener('pepx-auth-changed', function(e){
+    var session = e && e.detail ? e.detail.session : null;
     if(!session){
-      window.location.href = '/index.html?auth=account-required';
+      setAccountLocked(true);
+      setPageMessage('Sign in to view your account, orders, and saved addresses.', false);
+      openAuthModal('login');
       return;
     }
 
+    setAccountLocked(false);
+    setPageMessage('', false);
+    loadOverview().catch(function(err){
+      setPageMessage(err.message || 'Failed to load account data.', true);
+    });
+  });
+
+  loadAuthSession().then(function(session){
+    updateAccountButtonState();
+    if(!session){
+      setAccountLocked(true);
+      setPageMessage('Sign in to view your account, orders, and saved addresses.', false);
+      openAuthModal('login');
+      return;
+    }
+
+    setAccountLocked(false);
+    setPageMessage('', false);
     loadOverview().catch(function(err){
       setPageMessage(err.message || 'Failed to load account data.', true);
     });
@@ -949,9 +982,8 @@ function renderHeroReviewCollage(){
       return '<article class="hero-review-card"><div class="hero-review-stars">'+stars+'</div><p class="hero-review-text">"'+escapeHtml(review.message)+'"</p><div class="hero-review-author">'+escapeHtml(review.name)+'</div></article>';
     }).join('');
   };
-  var forward = buildCards(entries.concat(entries));
-  var reverse = buildCards(entries.slice().reverse().concat(entries.slice().reverse()));
-  root.innerHTML = '<div class="review-collage-col"><div class="review-collage-track">'+forward+'</div></div><div class="review-collage-col reverse"><div class="review-collage-track">'+reverse+'</div></div>';
+  var cards = buildCards(entries.concat(entries));
+  root.innerHTML = '<div class="review-collage-track">'+cards+'</div>';
 }
 
 function renderReviews(){
