@@ -328,7 +328,8 @@ footer .logo .logo-sub{transform:none;}
 	.review-form{padding:14px;}
 	.review-row{grid-template-columns:1fr;}
 	.qa .q{padding:14px;font-size:15px;}
-	.qa .a,.qa.open .a{padding:0 14px 14px;font-size:14px;}
+	.qa .a{padding:0 14px 0;font-size:14px;}
+	.qa.open .a{padding:0 14px 14px;font-size:14px;}
 	.about .container{gap:24px;}
 	.about h2{font-size:28px;}
 	.about p{font-size:15px;}
