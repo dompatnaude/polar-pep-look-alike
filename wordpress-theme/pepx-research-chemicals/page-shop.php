@@ -29,6 +29,8 @@ get_header(); ?>
           <label for="sortSelect">Sort by</label>
           <select id="sortSelect">
             <option value="default">Recommended</option>
+            <option value="nameAsc">A-Z</option>
+            <option value="nameDesc">Z-A</option>
             <option value="priceAsc">Price: Low to High</option>
             <option value="priceDesc">Price: High to Low</option>
           </select>

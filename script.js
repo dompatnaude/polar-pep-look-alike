@@ -336,6 +336,10 @@ function renderProducts(filter){
     visible.sort(function(a,b){return a.price - b.price;});
   } else if(activeSort === 'priceDesc'){
     visible.sort(function(a,b){return b.price - a.price;});
+  } else if(activeSort === 'nameAsc'){
+    visible.sort(function(a,b){return a.name.localeCompare(b.name);});
+  } else if(activeSort === 'nameDesc'){
+    visible.sort(function(a,b){return b.name.localeCompare(a.name);});
   }
   grid.innerHTML = renderProductCards(visible, { viewLabel: 'View Details' });
   if(!visible.length){

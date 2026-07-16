@@ -567,9 +567,54 @@ body.locked{overflow:hidden;}
 .signed-box{display:grid;gap:8px;padding:14px;border:1px solid #e5e7ef;border-radius:12px;background:#fafbff;}
 .signed-box p{font-size:14px;color:#1f2937;}
 
+/* Visual refresh: logo-aligned palette + sharper corners */
+:root{--blue:#2563eb;--dark:#1f2937;--muted:#64748b;--bg:#f8fafc;--soft:#eef2f7;}
+
+header{border-bottom:1px solid #dbe3ef;}
+.notice-bar{background:#1f2937;}
+.bar{background:var(--blue);}
+.shop-banner{background:linear-gradient(135deg,#2563eb,#1d4ed8);}
+footer{background:#1f2937;}
+
+.btn{border-radius:8px;}
+.pill,.tag,.detail-tab,.rail-link,.policy-btn,.badge,.sort-select{border-radius:8px;}
+.search-wrap,.menu-dropdown,.shop-hero-modern,.shop-banner{border-radius:10px;}
+
+.product-card,.product-modal-card,.review-form,.tcard,.qa,.account-card,.policy-page-card{border-radius:12px;}
+.product-card-media img,.hero-best-card,.hero-review-card,.product-detail-badge,.product-modal-image{border-radius:10px;}
+.hero-best,.product-detail-copy,.product-detail-tabs-section,.product-savings-chart,.product-detail-media,.about .art{border-radius:12px;}
+.drawer{border-radius:0;}
+
+.product-detail-qty input,.product-detail-dose select,.review-form input,.review-form select,.review-form textarea,.field input,.auth-form input,.auth-form select,.account-form input,.account-form textarea,.product-modal-qty input{border-radius:8px;}
+
+.mobile-nav-toggle{border-radius:8px;}
+.menu-item:hover .menu-dropdown,.menu-item:focus-within .menu-dropdown,.menu-item.open .menu-dropdown{transform:translateY(0);}
+
 @media(max-width:720px){
 	.auth-modal-card{margin:20px auto;padding:18px;max-height:calc(100vh - 40px);}
 	.auth-modal-card h3{font-size:24px;}
+}
+
+/* Mobile optimization pass */
+@media(max-width:900px){
+	html{-webkit-text-size-adjust:100%;}
+	body{overflow-x:hidden;}
+	.container{max-width:100%;}
+	nav.menu{max-height:72vh;overflow:auto;-webkit-overflow-scrolling:touch;}
+	.menu-dropdown{max-height:42vh;overflow:auto;-webkit-overflow-scrolling:touch;}
+	.savings-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+}
+
+@media(max-width:430px){
+	.btn,.icon-btn,.mobile-nav-toggle,.hero-best-arrow,.detail-tab,.pill,.policy-btn{min-height:44px;}
+	input,select,textarea{font-size:16px;}
+	.search-wrap{min-height:44px;}
+	.search-wrap.active input{width:118px;}
+	.product-modal-card,.auth-modal-card{max-height:calc(100vh - 24px);overflow:auto;}
+	.drawer{height:100dvh;}
+	.review-collage,.section,.about,.product-page,.policy-page-shell,.account-page{overflow-x:clip;}
+	.product-card-actions .btn{min-height:42px;}
+	.toast{max-width:calc(100% - 20px);}
 }
 
 /* iPhone tuning: preserve desktop-like proportions and density */
