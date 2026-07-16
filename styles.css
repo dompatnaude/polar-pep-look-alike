@@ -139,6 +139,9 @@ nav.menu a:hover{color:var(--blue);}
 .detail-tab{padding:12px 18px;border-radius:999px;border:1px solid #d7dbe8;background:#fff;color:#111827;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s ease;}
 .detail-tab.active,.detail-tab:hover{background:var(--blue);border-color:var(--blue);color:#fff;}
 .product-detail-tab-panel p{font-size:16px;line-height:1.8;color:#4b5563;max-width:900px;}
+.product-detail-tab-panel h4{font-size:18px;line-height:1.25;letter-spacing:-.3px;margin:16px 0 8px;color:#111827;}
+.product-detail-tab-panel ul{padding-left:22px;display:grid;gap:8px;margin:8px 0 12px;}
+.product-detail-tab-panel li{font-size:15px;line-height:1.7;color:#4b5563;}
 .product-savings-chart{border:1px solid #edf0f6;border-radius:24px;padding:24px;background:#fff;box-shadow:0 16px 40px rgba(15,23,42,.05);margin-bottom:30px;}
 .product-savings-chart h2{font-size:30px;line-height:1.08;letter-spacing:-.8px;text-align:left;margin-bottom:8px;}
 .product-savings-chart .sub{margin:0 0 16px;color:var(--muted);text-align:left;max-width:none;}
@@ -222,7 +225,7 @@ nav.menu a:hover{color:var(--blue);}
 .cform button{justify-self:start;}
 .form-msg{color:#7ee0a0;font-weight:600;display:none;}
 .about{background:var(--soft);}
-.about .container{display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center;}
+.about .container{display:grid;grid-template-columns:1fr;gap:50px;align-items:center;}
 .about h2{text-align:left;}
 .about p{color:var(--muted);margin-top:18px;font-size:17px;}
 .about .art{height:340px;background:radial-gradient(circle at 40% 40%,#e2e8fb,#fff);border-radius:24px;}

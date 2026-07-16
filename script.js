@@ -122,7 +122,7 @@ function getQuantityPricing(unitPrice, quantity){
   var qty = Number.isFinite(parsedQty) ? Math.max(0, parsedQty) : 0;
   var normalTotal = unitPrice * qty;
   var discountSteps = Math.max(0, Math.min(qty - 1, 4));
-  var discountRate = discountSteps * 0.03;
+  var discountRate = qty >= 10 ? 0.20 : discountSteps * 0.03;
   var discountedTotal = normalTotal * (1 - discountRate);
   return {
     qty: qty,
@@ -144,10 +144,12 @@ function setDualPriceMarkup(priceEl, pricing){
 function renderSavingsRows(product){
   var rows = document.getElementById('productSavingsRows');
   if(!rows || !product) return;
-  rows.innerHTML = [1, 2, 3, 4, 5].map(function(qty){
+  var levels = [1, 2, 3, 4, 5, '10+'];
+  rows.innerHTML = levels.map(function(level){
+    var qty = level === '10+' ? 10 : level;
     var pricing = getQuantityPricing(product.price, qty);
-    var saved = Math.max(0, pricing.normalTotal - pricing.discountedTotal);
-    return '<tr><td>' + qty + '</td><td>$' + saved.toFixed(2) + '</td></tr>';
+    var discountedLabel = level === '10+' ? ('$' + pricing.discountedTotal.toFixed(2) + '+') : ('$' + pricing.discountedTotal.toFixed(2));
+    return '<tr><td>' + level + '</td><td>' + discountedLabel + '</td></tr>';
   }).join('');
 }
 
@@ -182,10 +184,17 @@ function buildProductDescription(product){
 
 function buildProductDisclaimer(product){
   return [
-    product.name + ' is supplied strictly for laboratory research use only.',
-    'Not for human or veterinary use, ingestion, injection, or any household application.',
-    'Researchers are responsible for qualified handling, storage, and compliance with local regulations before use.'
-  ].join(' ');
+    '<p>The products offered by PepX Research are intended strictly for laboratory research purposes only and are sold exclusively to qualified professionals, institutions, and entities. These products are not for human consumption, veterinary use, or any other application involving living organisms, including but not limited to diagnostic, therapeutic, or recreational purposes.</p>',
+    '<p>By purchasing this product, you confirm that:</p>',
+    '<ul><li>You are a qualified professional or entity with the necessary knowledge, training, and facilities to handle chemical reagents safely and appropriately.</li><li>You will use this product in full compliance with all applicable local, state, and federal laws and regulations.</li></ul>',
+    '<h4>Prohibited Uses</h4>',
+    '<ul><li>This product is not to be used as an active pharmaceutical ingredient (API) in compounding or manufacturing drugs for human or veterinary use.</li><li>It is strictly prohibited to use this product for administration to humans or animals under any circumstances.</li><li>PepX Research does not condone or permit the use of its products for the development, testing, or production of illegal substances.</li></ul>',
+    '<h4>Regulatory Compliance</h4>',
+    '<p>PepX Research does not claim that this product is approved by the U.S. Food and Drug Administration (FDA) for any purpose. The statements regarding this product have not been evaluated by the FDA. This product is not intended to diagnose, treat, cure, or prevent any disease.</p>',
+    '<h4>Liability Statement</h4>',
+    '<p>The buyer assumes full responsibility for ensuring the safe handling, storage, and use of this product. PepX Research is not liable for any damages, direct or indirect, resulting from improper handling, storage, or unauthorized use of this product. Furthermore, PepX Research reserves the right to refuse sales to any individual or entity suspected of misusing its products.</p>',
+    '<p>If you have questions about the safe and lawful use of this product, consult a qualified professional with expertise in laboratory research. By proceeding with this purchase, you agree to these terms and conditions.</p>'
+  ].join('');
 }
 
 function getUpsellProducts(product, limit){
@@ -446,7 +455,12 @@ function renderProductDetailPage(){
     tabs.forEach(function(tab){
       tab.classList.toggle('active', tab.getAttribute('data-detail-tab') === tabName);
     });
-    if(descPanel) descPanel.innerHTML = '<p>' + escapeHtml(tabContent[tabName] || '') + '</p>';
+    if(!descPanel) return;
+    if(tabName === 'disclaimer'){
+      descPanel.innerHTML = tabContent.disclaimer || '';
+      return;
+    }
+    descPanel.innerHTML = '<p>' + escapeHtml(tabContent[tabName] || '') + '</p>';
   }
 
   tabs.forEach(function(tab){
@@ -1138,7 +1152,7 @@ function addReview(form){
     email: data.get('email').toString().trim(),
     message: data.get('message').toString().trim()
   };
-  if(!review.rating || !review.name || !review.email || !review.message){ return; }
+  if(!review.rating || !review.name || !review.email || !review.message){ return false; }
   reviews.unshift(review);
   renderReviews();
   form.reset();
@@ -1147,6 +1161,7 @@ function addReview(form){
     picker.querySelectorAll('.star-btn').forEach(function(btn){ btn.classList.remove('active'); });
     picker.querySelector('input[name="rating"]').value = '';
   }
+  return true;
 }
 
 // ---------- Entry gate ----------
@@ -1218,8 +1233,8 @@ window.addEventListener('DOMContentLoaded', function(){
     }
     reviewForm.addEventListener('submit', function(e){
       e.preventDefault();
-      addReview(reviewForm);
-      showToast('Review submitted');
+      var submitted = addReview(reviewForm);
+      showToast(submitted ? 'Review submitted' : 'Please complete rating, name, email, and review');
     });
   }
   renderReviews();
