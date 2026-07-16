@@ -117,6 +117,37 @@ function getProductUrl(id){
   return 'product.html?product=' + encodeURIComponent(id);
 }
 
+function getQuantityPricing(unitPrice, quantity){
+  var parsedQty = parseInt(quantity, 10);
+  var qty = Number.isFinite(parsedQty) ? Math.max(0, parsedQty) : 0;
+  var normalTotal = unitPrice * qty;
+  var discountSteps = Math.max(0, Math.min(qty - 1, 4));
+  var discountRate = discountSteps * 0.03;
+  var discountedTotal = normalTotal * (1 - discountRate);
+  return {
+    qty: qty,
+    normalTotal: normalTotal,
+    discountedTotal: discountedTotal,
+    hasDiscount: discountRate > 0
+  };
+}
+
+function setDualPriceMarkup(priceEl, pricing){
+  if(!priceEl) return;
+  if(pricing.hasDiscount){
+    priceEl.innerHTML = '<span class="price-normal">$' + pricing.normalTotal.toFixed(2) + '</span><span class="price-discount">$' + pricing.discountedTotal.toFixed(2) + '</span>';
+    return;
+  }
+  priceEl.textContent = '$' + pricing.normalTotal.toFixed(2);
+}
+
+function toggleAddToCartOption(addBtn, quantity){
+  if(!addBtn) return;
+  var canAdd = quantity >= 1;
+  addBtn.disabled = !canAdd;
+  addBtn.style.display = canAdd ? '' : 'none';
+}
+
 function navigateToProductPage(id){
   if(!id) return;
   window.location.href = getProductUrl(id);
@@ -217,7 +248,8 @@ function openProductModal(id){
   if(!modal) return;
   document.getElementById('productModalTitle').textContent = product.name;
   document.getElementById('productModalTag').textContent = product.tag;
-  document.getElementById('productModalPrice').textContent = '$' + product.price.toFixed(2);
+  var modalPriceEl = document.getElementById('productModalPrice');
+  var modalAddBtn = document.getElementById('addProductModalBtn');
   var modalImage = modal.querySelector('.product-modal-image');
   if(modalImage){
     modalImage.style.backgroundImage = 'url("' + getProductImage(product) + '")';
@@ -227,7 +259,18 @@ function openProductModal(id){
   var descEl = modal.querySelector('.product-modal-description');
   if(descEl) descEl.textContent = product.description;
   var qty = document.getElementById('productModalQty');
-  if(qty) qty.value = '1';
+  function updateModalPrice(){
+    if(!qty || !modalPriceEl) return;
+    var pricing = getQuantityPricing(product.price, qty.value);
+    setDualPriceMarkup(modalPriceEl, pricing);
+    toggleAddToCartOption(modalAddBtn, pricing.qty);
+  }
+  if(qty){
+    qty.value = '1';
+    qty.oninput = updateModalPrice;
+    qty.onchange = updateModalPrice;
+  }
+  updateModalPrice();
   modal.classList.add('show');
   document.getElementById('backdrop').classList.add('show');
 }
@@ -366,7 +409,6 @@ function renderProductDetailPage(){
   document.title = product.name + ' | PepX Research Chemicals';
   if(titleEl) titleEl.textContent = product.name;
   if(tagEl) tagEl.textContent = product.tag;
-  if(priceEl) priceEl.textContent = '$' + product.price.toFixed(2);
   if(breadcrumbEl) breadcrumbEl.textContent = product.name;
   if(summaryEl) summaryEl.textContent = product.description;
   if(detailMedia){
@@ -375,6 +417,19 @@ function renderProductDetailPage(){
     detailMedia.style.backgroundSize = 'cover';
     detailMedia.style.backgroundPosition = 'center';
   }
+
+  function updateDetailPrice(){
+    if(!priceEl) return;
+    var pricing = getQuantityPricing(product.price, qtyEl ? qtyEl.value : 1);
+    setDualPriceMarkup(priceEl, pricing);
+    toggleAddToCartOption(addBtn, pricing.qty);
+  }
+
+  if(qtyEl){
+    qtyEl.oninput = updateDetailPrice;
+    qtyEl.onchange = updateDetailPrice;
+  }
+  updateDetailPrice();
 
   function setActiveTab(tabName){
     tabs.forEach(function(tab){
@@ -392,7 +447,8 @@ function renderProductDetailPage(){
 
   if(addBtn){
     addBtn.addEventListener('click', function(){
-      var qty = qtyEl ? Math.max(1, parseInt(qtyEl.value, 10) || 1) : 1;
+      var qty = qtyEl ? Math.max(0, parseInt(qtyEl.value, 10) || 0) : 0;
+      if(qty < 1) return;
       cart[product.id] = (cart[product.id] || 0) + qty;
       renderCart();
       saveCart();
@@ -406,7 +462,8 @@ function renderProductDetailPage(){
 
 function addSelectedProductToCart(){
   if(!selectedProductId) return;
-  var qty = parseInt(document.getElementById('productModalQty').value, 10) || 1;
+  var qty = parseInt(document.getElementById('productModalQty').value, 10) || 0;
+  if(qty < 1) return;
   cart[selectedProductId] = (cart[selectedProductId] || 0) + qty;
   showToast('Added ' + qty + ' item(s) to cart');
   renderCart();
@@ -1048,11 +1105,11 @@ function renderHeroReviewCollage(){
 }
 
 function renderReviews(){
+  renderHeroReviewCollage();
   var list = document.getElementById('reviewList');
   if(!list) return;
   if(!reviews.length){
     list.innerHTML = '<div class="review-empty">No reviews yet. Be the first to leave one.</div>';
-    renderHeroReviewCollage();
     return;
   }
   list.innerHTML = reviews.map(function(review){
@@ -1060,7 +1117,6 @@ function renderReviews(){
     var displayName = formatReviewDisplayName(review.name);
     return '<div class="tcard"><div class="stars">'+stars+'</div><p>"'+review.message+'"</p><div class="who">'+displayName+'<span>'+review.email+'</span></div></div>';
   }).join('');
-  renderHeroReviewCollage();
 }
 
 function addReview(form){
