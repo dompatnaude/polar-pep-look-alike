@@ -141,6 +141,16 @@ function setDualPriceMarkup(priceEl, pricing){
   priceEl.textContent = '$' + pricing.normalTotal.toFixed(2);
 }
 
+function renderSavingsRows(product){
+  var rows = document.getElementById('productSavingsRows');
+  if(!rows || !product) return;
+  rows.innerHTML = [1, 2, 3, 4, 5].map(function(qty){
+    var pricing = getQuantityPricing(product.price, qty);
+    var saved = Math.max(0, pricing.normalTotal - pricing.discountedTotal);
+    return '<tr><td>' + qty + '</td><td>$' + saved.toFixed(2) + '</td></tr>';
+  }).join('');
+}
+
 function toggleAddToCartOption(addBtn, quantity){
   if(!addBtn) return;
   var canAdd = quantity >= 1;
@@ -411,6 +421,7 @@ function renderProductDetailPage(){
   if(tagEl) tagEl.textContent = product.tag;
   if(breadcrumbEl) breadcrumbEl.textContent = product.name;
   if(summaryEl) summaryEl.textContent = product.description;
+  renderSavingsRows(product);
   if(detailMedia){
     detailMedia.classList.add('has-product-image');
     detailMedia.style.backgroundImage = 'url("' + getProductImage(product) + '")';
