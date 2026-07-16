@@ -1,0 +1,46 @@
+<section class="pepx-hero">
+  <div class="pepx-container">
+    <p class="pepx-kicker">Research Catalog</p>
+    <h1>{{ section.settings.heading }}</h1>
+    <p>{{ section.settings.subheading }}</p>
+    {% if section.settings.button_label != blank and section.settings.button_link != blank %}
+      <a class="pepx-btn" href="{{ section.settings.button_link }}">{{ section.settings.button_label }}</a>
+    {% endif %}
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "PepX Hero",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Modern peptide sourcing for research teams"
+    },
+    {
+      "type": "textarea",
+      "id": "subheading",
+      "label": "Subheading",
+      "default": "Browse compounds, review product details, and add items to Shopify cart directly."
+    },
+    {
+      "type": "text",
+      "id": "button_label",
+      "label": "Button label",
+      "default": "Browse catalog"
+    },
+    {
+      "type": "url",
+      "id": "button_link",
+      "label": "Button link"
+    }
+  ],
+  "presets": [
+    {
+      "name": "PepX Hero"
+    }
+  ]
+}
+{% endschema %}

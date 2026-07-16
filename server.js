@@ -41,6 +41,25 @@ function mapUserRow(row) {
   };
 }
 
+function mapAddressRow(row) {
+  if (!row) {
+    return {
+      billingAddress: '',
+      shippingAddress: ''
+    };
+  }
+
+  return {
+    billingAddress: row.billing_address || '',
+    shippingAddress: row.shipping_address || ''
+  };
+}
+
+function toMoney(value) {
+  const num = Number(value || 0);
+  return Math.round(num * 100) / 100;
+}
+
 async function findUserById(id) {
   const db = await getDb();
   const row = await db.get('SELECT * FROM users WHERE id = ?;', id);
@@ -89,6 +108,145 @@ async function saveOrUpdateUser(nextUser) {
     nextUser.passwordHash || null,
     nextUser.googleId || null
   );
+}
+
+async function findAddressByUserId(userId) {
+  const db = await getDb();
+  const row = await db.get('SELECT * FROM user_addresses WHERE user_id = ?;', userId);
+  return mapAddressRow(row);
+}
+
+async function saveAddressByUserId(userId, nextAddress) {
+  const db = await getDb();
+  await db.run(
+    `
+    INSERT INTO user_addresses (user_id, billing_address, shipping_address, updated_at)
+    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(user_id) DO UPDATE SET
+      billing_address = excluded.billing_address,
+      shipping_address = excluded.shipping_address,
+      updated_at = CURRENT_TIMESTAMP;
+    `,
+    userId,
+    String(nextAddress.billingAddress || '').trim(),
+    String(nextAddress.shippingAddress || '').trim()
+  );
+}
+
+async function listOrdersByUserId(userId) {
+  const db = await getDb();
+  const orderRows = await db.all(
+    `
+    SELECT id, status, total_amount, created_at
+    FROM orders
+    WHERE user_id = ?
+    ORDER BY datetime(created_at) DESC;
+    `,
+    userId
+  );
+
+  if (!orderRows.length) return [];
+
+  const orderIds = orderRows.map((row) => row.id);
+  const placeholders = orderIds.map(() => '?').join(',');
+  const itemRows = await db.all(
+    `
+    SELECT order_id, product_id, product_name, unit_price, quantity, line_total
+    FROM order_items
+    WHERE order_id IN (${placeholders})
+    ORDER BY id ASC;
+    `,
+    ...orderIds
+  );
+
+  const itemsByOrderId = new Map();
+  itemRows.forEach((row) => {
+    const existing = itemsByOrderId.get(row.order_id) || [];
+    existing.push({
+      productId: row.product_id,
+      name: row.product_name,
+      unitPrice: toMoney(row.unit_price),
+      quantity: Number(row.quantity || 0),
+      lineTotal: toMoney(row.line_total)
+    });
+    itemsByOrderId.set(row.order_id, existing);
+  });
+
+  return orderRows.map((row) => ({
+    id: row.id,
+    status: row.status,
+    totalAmount: toMoney(row.total_amount),
+    createdAt: row.created_at,
+    items: itemsByOrderId.get(row.id) || []
+  }));
+}
+
+async function createOrderByUserId(userId, payloadItems) {
+  const items = Array.isArray(payloadItems) ? payloadItems : [];
+  if (!items.length) {
+    throw new Error('Order must include at least one item.');
+  }
+
+  const normalizedItems = items.map((item) => {
+    const name = String(item.name || '').trim();
+    const quantity = Math.max(1, Number(item.quantity || 0));
+    const unitPrice = toMoney(item.unitPrice);
+    const productId = String(item.productId || '').trim();
+
+    if (!name || !productId || !Number.isFinite(unitPrice) || unitPrice <= 0) {
+      throw new Error('Invalid order item payload.');
+    }
+
+    return {
+      productId,
+      name,
+      quantity,
+      unitPrice,
+      lineTotal: toMoney(quantity * unitPrice)
+    };
+  });
+
+  const orderId = crypto.randomUUID();
+  const totalAmount = toMoney(normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0));
+  const db = await getDb();
+
+  await db.exec('BEGIN;');
+  try {
+    await db.run(
+      'INSERT INTO orders (id, user_id, status, total_amount) VALUES (?, ?, ?, ?);',
+      orderId,
+      userId,
+      'Processing',
+      totalAmount
+    );
+
+    for (const item of normalizedItems) {
+      await db.run(
+        `
+        INSERT INTO order_items (order_id, product_id, product_name, unit_price, quantity, line_total)
+        VALUES (?, ?, ?, ?, ?, ?);
+        `,
+        orderId,
+        item.productId,
+        item.name,
+        item.unitPrice,
+        item.quantity,
+        item.lineTotal
+      );
+    }
+
+    await db.exec('COMMIT;');
+  } catch (error) {
+    await db.exec('ROLLBACK;');
+    throw error;
+  }
+
+  return {
+    id: orderId,
+    status: 'Processing',
+    totalAmount,
+    items: normalizedItems
+  };
 }
 
 app.use(express.json());
@@ -299,6 +457,129 @@ app.get('/auth/google/callback', (req, res, next) => {
 
 app.get('/api/auth/protected', requireAuth, (req, res) => {
   return res.json({ user: toPublicUser(req.user) });
+});
+
+app.get('/api/account/overview', requireAuth, async (req, res) => {
+  try {
+    const user = await findUserById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const address = await findAddressByUserId(user.id);
+    const orders = await listOrdersByUserId(user.id);
+
+    return res.json({
+      profile: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        institution: user.institution,
+        provider: user.provider,
+        ...address
+      },
+      orders
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to load account overview.' });
+  }
+});
+
+app.put('/api/account/profile', requireAuth, async (req, res) => {
+  try {
+    const { name, email, institution } = req.body || {};
+    const nextName = String(name || '').trim();
+    const nextEmail = normalizeEmail(email);
+    const nextInstitution = String(institution || '').trim();
+
+    if (!nextName || !nextEmail || !nextInstitution) {
+      return res.status(400).json({ error: 'Name, email, and institution are required.' });
+    }
+
+    const existingByEmail = await findUserByEmail(nextEmail);
+    if (existingByEmail && existingByEmail.id !== req.user.id) {
+      return res.status(409).json({ error: 'This email is already in use.' });
+    }
+
+    const current = await findUserById(req.user.id);
+    if (!current) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    await saveOrUpdateUser({
+      ...current,
+      name: nextName,
+      email: nextEmail,
+      institution: nextInstitution
+    });
+
+    const updated = await findUserById(req.user.id);
+    return res.json({ user: toPublicUser(updated) });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to update profile.' });
+  }
+});
+
+app.put('/api/account/addresses', requireAuth, async (req, res) => {
+  try {
+    const { billingAddress, shippingAddress } = req.body || {};
+    await saveAddressByUserId(req.user.id, {
+      billingAddress: String(billingAddress || ''),
+      shippingAddress: String(shippingAddress || '')
+    });
+
+    const address = await findAddressByUserId(req.user.id);
+    return res.json(address);
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to update addresses.' });
+  }
+});
+
+app.put('/api/account/password', requireAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body || {};
+    const nextPassword = String(newPassword || '');
+
+    if (nextPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters.' });
+    }
+
+    const user = await findUserById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (user.passwordHash) {
+      const validCurrent = await bcrypt.compare(String(currentPassword || ''), user.passwordHash);
+      if (!validCurrent) {
+        return res.status(401).json({ error: 'Current password is incorrect.' });
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(nextPassword, 12);
+    await saveOrUpdateUser({
+      ...user,
+      passwordHash
+    });
+
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to update password.' });
+  }
+});
+
+app.post('/api/account/orders', requireAuth, async (req, res) => {
+  try {
+    const { items } = req.body || {};
+    const order = await createOrderByUserId(req.user.id, items);
+    return res.status(201).json({ order });
+  } catch (error) {
+    const msg = error && error.message ? error.message : 'Failed to create order.';
+    if (msg.includes('Invalid order item') || msg.includes('at least one item')) {
+      return res.status(400).json({ error: msg });
+    }
+    return res.status(500).json({ error: 'Failed to create order.' });
+  }
 });
 
 app.use(express.static(path.join(__dirname)));

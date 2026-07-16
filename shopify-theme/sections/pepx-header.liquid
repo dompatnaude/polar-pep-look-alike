@@ -1,0 +1,21 @@
+<header class="pepx-header">
+  <div class="pepx-container pepx-nav">
+    <a class="pepx-logo" href="{{ routes.root_url }}">{{ shop.name }}</a>
+    <nav class="pepx-menu" aria-label="Main menu">
+      {% for link in linklists.main-menu.links %}
+        <a href="{{ link.url }}">{{ link.title }}</a>
+      {% endfor %}
+    </nav>
+    <a class="pepx-cart-link" href="{{ routes.cart_url }}">
+      Cart
+      <span id="pepx-cart-count" class="pepx-cart-count"{% if cart.item_count == 0 %} style="display:none"{% endif %}>{{ cart.item_count }}</span>
+    </a>
+  </div>
+</header>
+
+{% schema %}
+{
+  "name": "PepX Header",
+  "settings": []
+}
+{% endschema %}

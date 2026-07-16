@@ -1,0 +1,12 @@
+{
+  "sections": {
+    "products": {
+      "type": "pepx-products-grid",
+      "settings": {
+        "title": "Shop",
+        "products_limit": 24
+      }
+    }
+  },
+  "order": ["products"]
+}

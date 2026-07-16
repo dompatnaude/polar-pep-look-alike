@@ -1,0 +1,21 @@
+{
+  "sections": {
+    "hero": {
+      "type": "pepx-hero",
+      "settings": {
+        "heading": "Modern peptide sourcing for research teams",
+        "subheading": "Browse compounds, review product details, and add items to Shopify cart directly.",
+        "button_label": "Browse catalog",
+        "button_link": "/pages/shop"
+      }
+    },
+    "products": {
+      "type": "pepx-products-grid",
+      "settings": {
+        "title": "Featured products",
+        "products_limit": 8
+      }
+    }
+  },
+  "order": ["hero", "products"]
+}

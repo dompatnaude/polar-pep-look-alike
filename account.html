@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Product | PepX Research Chemicals</title>
+  <title>My Account | PepX Research Chemicals</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -15,12 +15,6 @@
       <button type="button" id="mobileMenuToggle" class="icon-btn mobile-nav-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="site-menu">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
       </button>
-      <div class="search-wrap" id="searchWrap">
-        <button type="button" id="searchBtn" class="icon-btn" title="Search" aria-label="Search">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="5.5" fill="none" stroke="currentColor" stroke-width="2"></circle><path d="M16 16l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
-        </button>
-        <input type="text" id="productSearch" placeholder="Search products" aria-label="Search products">
-      </div>
       <button type="button" id="accountBtn" class="icon-btn" title="Account" aria-label="Account">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="2"></circle><path d="M4 20c1.5-3.2 4.2-4.8 8-4.8s6.5 1.6 8 4.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
       </button>
@@ -31,63 +25,80 @@
     </div>
   </div></header>
 
-  <main class="container product-page" data-product-detail-page>
-    <nav class="product-breadcrumb" aria-label="Breadcrumb">
-      <a href="index.html">Home</a>
-      <span>/</span>
-      <a href="shop.html">Shop</a>
-      <span>/</span>
-      <span id="productDetailBreadcrumb">Product</span>
-    </nav>
+  <main class="container account-page" data-account-page>
+    <section class="section">
+      <div class="account-head">
+        <h1>My Account</h1>
+        <button type="button" class="btn ghost" id="accountLogoutBtn">Log Out</button>
+      </div>
+      <p class="sub">View your orders, manage addresses, and update account settings.</p>
+      <p class="auth-message" id="accountPageMessage" aria-live="polite"></p>
 
-    <section class="product-detail-shell">
-      <div class="product-detail-media">
-        <div class="product-detail-orb"></div>
-        <div class="product-detail-badge">Lab Verified</div>
-      </div>
-      <div class="product-detail-copy">
-        <span class="tag" id="productDetailTag"></span>
-        <h1 id="productDetailTitle">Product Name</h1>
-        <p class="product-detail-price" id="productDetailPrice"></p>
-        <p class="product-detail-summary" id="productDetailSummary"></p>
-        <div class="product-detail-purchase">
-          <label class="product-detail-qty" for="productDetailQty">
-            <span>Quantity</span>
-            <input type="number" id="productDetailQty" min="1" value="1">
-          </label>
-          <button class="btn primary" id="productDetailAddBtn" type="button">Add to Cart</button>
-        </div>
-      </div>
-    </section>
+      <div class="account-grid">
+        <section class="account-card">
+          <h3>Current Orders</h3>
+          <div id="currentOrdersList" class="account-orders"></div>
+        </section>
 
-    <section class="product-detail-tabs-section">
-      <div class="product-detail-tabs" role="tablist" aria-label="Product information tabs">
-        <button type="button" class="detail-tab active" data-detail-tab="description">Description</button>
-        <button type="button" class="detail-tab" data-detail-tab="disclaimer">Disclaimer</button>
+        <section class="account-card">
+          <h3>Past Orders</h3>
+          <div id="pastOrdersList" class="account-orders"></div>
+        </section>
       </div>
-      <div class="product-detail-tab-panel" id="productTabPanel"></div>
-    </section>
 
-    <section class="product-rail-section">
-      <div class="rail-head">
-        <div>
-          <p class="rail-kicker">Don't forget to buy</p>
-          <h2>Complete your research setup</h2>
-        </div>
-        <a class="rail-link" href="shop.html">View All</a>
-      </div>
-      <div class="grid grid-rail" id="upsellGrid"></div>
-    </section>
+      <div class="account-grid">
+        <section class="account-card">
+          <h3>Billing & Shipping Address</h3>
+          <form id="accountAddressForm" class="account-form">
+            <label>
+              <span>Billing Address</span>
+              <textarea name="billingAddress" rows="4" placeholder="Name, street, city, state, ZIP"></textarea>
+            </label>
+            <label>
+              <span>Shipping Address</span>
+              <textarea name="shippingAddress" rows="4" placeholder="Name, street, city, state, ZIP"></textarea>
+            </label>
+            <button type="submit" class="btn primary">Save Addresses</button>
+          </form>
+        </section>
 
-    <section class="product-rail-section product-rail-related">
-      <div class="rail-head">
-        <div>
-          <p class="rail-kicker">Related products</p>
-          <h2>More products in this range</h2>
-        </div>
-        <a class="rail-link rail-link-arrow" href="shop.html">View All ></a>
+        <section class="account-card">
+          <h3>Account Settings</h3>
+          <form id="accountProfileForm" class="account-form">
+            <label>
+              <span>Full Name</span>
+              <input type="text" name="name" required>
+            </label>
+            <label>
+              <span>Email</span>
+              <input type="email" name="email" required>
+            </label>
+            <label>
+              <span>Institution</span>
+              <input type="text" name="institution" required>
+            </label>
+            <button type="submit" class="btn primary">Update Profile</button>
+          </form>
+
+          <hr class="account-divider">
+
+          <form id="accountPasswordForm" class="account-form">
+            <label>
+              <span>Current Password</span>
+              <input type="password" name="currentPassword" placeholder="Required if you already set one">
+            </label>
+            <label>
+              <span>New Password</span>
+              <input type="password" name="newPassword" minlength="8" required>
+            </label>
+            <label>
+              <span>Confirm New Password</span>
+              <input type="password" name="confirmNewPassword" minlength="8" required>
+            </label>
+            <button type="submit" class="btn primary">Change Password</button>
+          </form>
+        </section>
       </div>
-      <div class="grid grid-rail" id="relatedGrid"></div>
     </section>
   </main>
 
@@ -95,7 +106,6 @@
     <div class="copy">&copy; 2026 PepX Research Chemicals. For research use only. Not for human consumption.</div>
   </div></footer>
 
-  <div class="backdrop" id="backdrop"></div>
   <div class="toast" id="toast"></div>
   <script src="script.js"></script>
 </body>

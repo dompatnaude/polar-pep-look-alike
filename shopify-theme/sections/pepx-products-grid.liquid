@@ -1,0 +1,81 @@
+{% assign active_collection = collections[section.settings.collection] %}
+{% if active_collection == blank %}
+  {% assign active_collection = collections.all %}
+{% endif %}
+
+<section class="pepx-products">
+  <div class="pepx-container">
+    <div class="pepx-products-head">
+      <h2>{{ section.settings.title }}</h2>
+      {% if active_collection %}
+        <a href="{{ active_collection.url }}">View all</a>
+      {% endif %}
+    </div>
+
+    {% if active_collection and active_collection.products_count > 0 %}
+      <div class="pepx-grid">
+        {% for product in active_collection.products limit: section.settings.products_limit %}
+          {% assign variant = product.selected_or_first_available_variant %}
+          <article class="pepx-card">
+            <a class="pepx-card-media" href="{{ product.url }}">
+              {% if product.featured_image %}
+                {{ product.featured_image | image_url: width: 800 | image_tag: loading: 'lazy', alt: product.title }}
+              {% endif %}
+            </a>
+            <div class="pepx-card-body">
+              <p class="pepx-card-vendor">{{ product.vendor }}</p>
+              <h3><a href="{{ product.url }}">{{ product.title }}</a></h3>
+              <p class="pepx-price">{{ product.price | money }}</p>
+              {% if variant and variant.available %}
+                <button
+                  class="pepx-btn js-add-to-cart"
+                  type="button"
+                  data-variant-id="{{ variant.id }}"
+                >
+                  Add to cart
+                </button>
+              {% else %}
+                <button class="pepx-btn pepx-btn-disabled" type="button" disabled>Sold out</button>
+              {% endif %}
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p>No products found. Choose a collection in the theme editor.</p>
+    {% endif %}
+  </div>
+</section>
+
+{% schema %}
+{
+  "name": "PepX Products Grid",
+  "settings": [
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Heading",
+      "default": "Shop"
+    },
+    {
+      "type": "collection",
+      "id": "collection",
+      "label": "Collection"
+    },
+    {
+      "type": "range",
+      "id": "products_limit",
+      "label": "Products to show",
+      "min": 4,
+      "max": 24,
+      "step": 1,
+      "default": 12
+    }
+  ],
+  "presets": [
+    {
+      "name": "PepX Products Grid"
+    }
+  ]
+}
+{% endschema %}

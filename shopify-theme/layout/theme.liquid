@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="{{ request.locale.iso_code }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>{{ page_title }}{% if current_tags %} - tagged {{ current_tags | join: ', ' }}{% endif %}{% if current_page != 1 %} - Page {{ current_page }}{% endif %}{% unless page_title contains shop.name %} - {{ shop.name }}{% endunless %}</title>
+    {{ content_for_header }}
+    {{ 'pepx.css' | asset_url | stylesheet_tag }}
+  </head>
+  <body>
+    {% section 'pepx-header' %}
+
+    <main id="MainContent" role="main">
+      {{ content_for_layout }}
+    </main>
+
+    {% section 'pepx-footer' %}
+
+    <script>
+      window.PEPX_ROUTES = {
+        cartAdd: {{ routes.cart_add_url | json }},
+        cart: {{ routes.cart_url | json }},
+        cartChange: {{ routes.cart_change_url | json }}
+      };
+    </script>
+    {{ 'pepx.js' | asset_url | script_tag }}
+  </body>
+</html>

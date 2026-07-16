@@ -63,3 +63,10 @@ npm run migrate
 - Google auth buttons are functional only when Google OAuth env vars are configured.
 - User data is stored in SQLite at `data/app.db` for this deployment model.
 - For production hardening, use an external database and a production session store.
+
+## Shopify Theme-First Path
+
+If you want Shopify-native integration, use the dedicated theme scaffold in `shopify-theme/`.
+
+- Start with `shopify-theme/README.md`
+- Push with Shopify CLI: `shopify theme push --path shopify-theme --store YOUR_STORE.myshopify.com`

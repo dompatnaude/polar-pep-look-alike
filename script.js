@@ -79,6 +79,36 @@ function initMenuDropdowns(){
   });
 }
 
+function initMobileNav(){
+  var nav = document.querySelector('nav.menu');
+  var toggle = document.getElementById('mobileMenuToggle');
+  if(!nav || !toggle) return;
+
+  function closeNav(){
+    nav.classList.remove('open');
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+
+  toggle.setAttribute('aria-expanded', 'false');
+  toggle.addEventListener('click', function(){
+    var isOpen = nav.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  });
+
+  nav.querySelectorAll('a').forEach(function(link){
+    link.addEventListener('click', closeNav);
+  });
+
+  document.addEventListener('click', function(e){
+    if(nav.contains(e.target) || toggle.contains(e.target)) return;
+    closeNav();
+  });
+
+  window.addEventListener('resize', function(){
+    if(window.innerWidth > 900) closeNav();
+  });
+}
+
 function getProductById(id){
   return PRODUCTS.find(function(item){ return item.id === id; }) || null;
 }
@@ -714,6 +744,169 @@ function initAuth(){
   });
 }
 
+function formatOrderDate(value){
+  var dt = new Date(value);
+  if(Number.isNaN(dt.getTime())) return value || '';
+  return dt.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+function buildOrderCard(order){
+  var itemsHtml = (order.items || []).map(function(item){
+    return '<li><span>' + escapeHtml(item.name) + ' x' + item.quantity + '</span><span>$' + Number(item.lineTotal || 0).toFixed(2) + '</span></li>';
+  }).join('');
+
+  return '<article class="account-order-card">' +
+    '<div class="account-order-head"><h4>Order #' + escapeHtml(order.id.slice(0, 8).toUpperCase()) + '</h4><span class="account-order-status">' + escapeHtml(order.status || 'Processing') + '</span></div>' +
+    '<p class="account-order-date">Placed ' + escapeHtml(formatOrderDate(order.createdAt)) + '</p>' +
+    '<ul class="account-order-items">' + itemsHtml + '</ul>' +
+    '<div class="account-order-total">Total: $' + Number(order.totalAmount || 0).toFixed(2) + '</div>' +
+    '</article>';
+}
+
+function renderOrdersByType(orders){
+  var currentRoot = document.getElementById('currentOrdersList');
+  var pastRoot = document.getElementById('pastOrdersList');
+  if(!currentRoot || !pastRoot) return;
+
+  var currentStatuses = { Processing: true, Pending: true, Shipped: true };
+  var current = orders.filter(function(order){ return currentStatuses[order.status || '']; });
+  var past = orders.filter(function(order){ return !currentStatuses[order.status || '']; });
+
+  currentRoot.innerHTML = current.length
+    ? current.map(buildOrderCard).join('')
+    : '<p class="account-empty">No current orders.</p>';
+
+  pastRoot.innerHTML = past.length
+    ? past.map(buildOrderCard).join('')
+    : '<p class="account-empty">No past orders.</p>';
+}
+
+function initAccountPage(){
+  var page = document.querySelector('[data-account-page]');
+  if(!page) return;
+
+  var msg = document.getElementById('accountPageMessage');
+  var profileForm = document.getElementById('accountProfileForm');
+  var addressForm = document.getElementById('accountAddressForm');
+  var passwordForm = document.getElementById('accountPasswordForm');
+  var logoutBtn = document.getElementById('accountLogoutBtn');
+
+  function setPageMessage(text, isError){
+    if(!msg) return;
+    msg.textContent = text || '';
+    msg.classList.toggle('error', !!isError);
+    msg.classList.toggle('success', !!text && !isError);
+  }
+
+  function loadOverview(){
+    return authApi('/api/account/overview', { method: 'GET' }).then(function(data){
+      var profile = data.profile || {};
+      if(profileForm){
+        profileForm.name.value = profile.name || '';
+        profileForm.email.value = profile.email || '';
+        profileForm.institution.value = profile.institution || '';
+      }
+      if(addressForm){
+        addressForm.billingAddress.value = profile.billingAddress || '';
+        addressForm.shippingAddress.value = profile.shippingAddress || '';
+      }
+      renderOrdersByType(data.orders || []);
+      return data;
+    });
+  }
+
+  loadAuthSession().then(function(session){
+    updateAccountButtonState();
+    if(!session){
+      window.location.href = '/index.html?auth=account-required';
+      return;
+    }
+
+    loadOverview().catch(function(err){
+      setPageMessage(err.message || 'Failed to load account data.', true);
+    });
+  });
+
+  if(profileForm){
+    profileForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var fd = new FormData(profileForm);
+      authApi('/api/account/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: (fd.get('name') || '').toString().trim(),
+          email: normalizeEmail(fd.get('email')),
+          institution: (fd.get('institution') || '').toString().trim()
+        })
+      }).then(function(data){
+        currentAuthSession = data.user || currentAuthSession;
+        updateAccountButtonState();
+        setPageMessage('Profile updated.', false);
+      }).catch(function(err){
+        setPageMessage(err.message || 'Failed to update profile.', true);
+      });
+    });
+  }
+
+  if(addressForm){
+    addressForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var fd = new FormData(addressForm);
+      authApi('/api/account/addresses', {
+        method: 'PUT',
+        body: JSON.stringify({
+          billingAddress: (fd.get('billingAddress') || '').toString(),
+          shippingAddress: (fd.get('shippingAddress') || '').toString()
+        })
+      }).then(function(){
+        setPageMessage('Address information updated.', false);
+      }).catch(function(err){
+        setPageMessage(err.message || 'Failed to update addresses.', true);
+      });
+    });
+  }
+
+  if(passwordForm){
+    passwordForm.addEventListener('submit', function(e){
+      e.preventDefault();
+      var fd = new FormData(passwordForm);
+      var newPassword = (fd.get('newPassword') || '').toString();
+      var confirmNewPassword = (fd.get('confirmNewPassword') || '').toString();
+      if(newPassword !== confirmNewPassword){
+        setPageMessage('New password and confirmation do not match.', true);
+        return;
+      }
+
+      authApi('/api/account/password', {
+        method: 'PUT',
+        body: JSON.stringify({
+          currentPassword: (fd.get('currentPassword') || '').toString(),
+          newPassword: newPassword
+        })
+      }).then(function(){
+        passwordForm.reset();
+        setPageMessage('Password updated successfully.', false);
+      }).catch(function(err){
+        setPageMessage(err.message || 'Failed to update password.', true);
+      });
+    });
+  }
+
+  if(logoutBtn){
+    logoutBtn.addEventListener('click', function(){
+      authApi('/api/auth/logout', { method: 'POST' }).then(function(){
+        window.location.href = '/index.html';
+      });
+    });
+  }
+}
+
 // ---------- Reviews ----------
 var reviews = [];
 var HERO_REVIEW_FALLBACK = [
@@ -830,9 +1023,11 @@ window.addEventListener('DOMContentLoaded', function(){
   loadCart();
   initShopCategoryFromUrl();
   initMenuDropdowns();
+  initMobileNav();
   renderProducts();
   renderCart();
   renderProductDetailPage();
+  initAccountPage();
   initGate();
   initAuth();
 
@@ -925,8 +1120,36 @@ window.addEventListener('DOMContentLoaded', function(){
   if(checkoutBtnEl){
     checkoutBtnEl.addEventListener('click', function(){
       if(!Object.keys(cart).length){ showToast('Your cart is empty'); return; }
-      cart = {}; renderCart(); closeCart();
-      showToast('Order placed! (demo checkout)');
+      if(!currentAuthSession){
+        showToast('Please sign in to place your order.');
+        openAuthModal('login');
+        return;
+      }
+
+      var items = Object.keys(cart).map(function(id){
+        var product = getProductById(id);
+        return {
+          productId: id,
+          name: product ? product.name : id,
+          quantity: cart[id],
+          unitPrice: product ? product.price : 0
+        };
+      });
+
+      authApi('/api/account/orders', {
+        method: 'POST',
+        body: JSON.stringify({ items: items })
+      }).then(function(){
+        cart = {};
+        renderCart();
+        closeCart();
+        showToast('Order placed successfully.');
+        if(window.location.pathname.indexOf('checkout.html') !== -1){
+          window.location.href = 'account.html';
+        }
+      }).catch(function(err){
+        showToast(err.message || 'Failed to place order.');
+      });
     });
   }
 
