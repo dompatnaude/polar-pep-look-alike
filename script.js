@@ -614,7 +614,8 @@ function closeAuthModal(){
 }
 
 function handleGoogleAuth(){
-  window.location.href = '/auth/google';
+  var next = window.location.pathname + window.location.search;
+  window.location.href = '/auth/google?next=' + encodeURIComponent(next);
 }
 
 function updateAccountButtonState(){
@@ -648,6 +649,8 @@ function initAuth(){
       showToast('Google sign-in failed. Please try again.');
     } else if(authState === 'google-not-configured'){
       showToast('Google sign-in is not configured yet.');
+    } else if(authState === 'account-required'){
+      showToast('Please sign in to access your account page.');
     }
 
     if(authState){

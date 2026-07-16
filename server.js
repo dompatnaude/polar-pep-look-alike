@@ -60,6 +60,23 @@ function toMoney(value) {
   return Math.round(num * 100) / 100;
 }
 
+function sanitizeReturnPath(value) {
+  const raw = String(value || '').trim();
+  if (!raw.startsWith('/')) return null;
+  if (raw.startsWith('//')) return null;
+  if (raw.includes('://')) return null;
+  return raw;
+}
+
+function withAuthQuery(pathname, authValue) {
+  const safePath = sanitizeReturnPath(pathname) || '/index.html';
+  const [base, queryString = ''] = safePath.split('?');
+  const params = new URLSearchParams(queryString);
+  params.set('auth', authValue);
+  const query = params.toString();
+  return query ? `${base}?${query}` : base;
+}
+
 async function findUserById(id) {
   const db = await getDb();
   const row = await db.get('SELECT * FROM users WHERE id = ?;', id);
@@ -440,8 +457,12 @@ app.get('/api/auth/session', async (req, res) => {
 
 app.get('/auth/google', (req, res, next) => {
   if (!googleConfigured) {
-    return res.redirect('/index.html?auth=google-not-configured');
+    const fallbackTarget = sanitizeReturnPath(req.query.next) || '/index.html';
+    return res.redirect(withAuthQuery(fallbackTarget, 'google-not-configured'));
   }
+
+  const requestedNext = sanitizeReturnPath(req.query.next) || '/account.html';
+  req.session.oauthReturnTo = requestedNext;
   return passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
 });
 
@@ -449,9 +470,12 @@ app.get('/auth/google/callback', (req, res, next) => {
   if (!googleConfigured) {
     return res.redirect('/index.html?auth=google-not-configured');
   }
-  return passport.authenticate('google', { failureRedirect: '/index.html?auth=google-failed' })(req, res, () => {
+  const returnTo = sanitizeReturnPath(req.session.oauthReturnTo) || '/account.html';
+  delete req.session.oauthReturnTo;
+
+  return passport.authenticate('google', { failureRedirect: withAuthQuery(returnTo, 'google-failed') })(req, res, () => {
     req.session.userId = req.user.id;
-    res.redirect('/index.html?auth=google-success');
+    res.redirect(withAuthQuery(returnTo, 'google-success'));
   });
 });
 
