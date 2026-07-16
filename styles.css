@@ -127,8 +127,16 @@ nav.menu a:hover{color:var(--blue);}
 .product-detail-price .price-normal,.product-modal-price .price-normal{font-size:.64em;color:#6b7280;text-decoration:line-through;margin-right:10px;font-weight:700;}
 .product-detail-price .price-discount,.product-modal-price .price-discount{font-size:1em;color:var(--blue);font-weight:900;}
 .product-detail-summary{font-size:17px;line-height:1.7;color:var(--muted);margin-bottom:28px;}
-.product-detail-purchase{display:flex;align-items:end;gap:16px;flex-wrap:wrap;}
+	.product-detail-purchase{display:flex;align-items:end;justify-content:space-between;gap:18px;flex-wrap:wrap;}
+	.product-detail-inputs{display:grid;gap:12px;align-items:start;}
+	.product-detail-actions{display:flex;align-items:end;gap:10px;margin-left:auto;}
+	.product-detail-actions .btn{white-space:nowrap;}
 .product-detail-dose{display:grid;gap:8px;font-weight:700;font-size:14px;color:#374151;}
+.dose-options{display:flex;gap:12px;flex-wrap:wrap;}
+.dose-option{padding:14px 18px;border:2px solid #d7dbe8;border-radius:14px;font-size:16px;background:#fff;color:#111;font-weight:700;cursor:pointer;transition:all .2s ease;}
+.dose-option{min-height:44px;}
+.dose-option:hover{border-color:var(--blue);background:#f3f7ff;}
+.dose-option.active{background:var(--blue);border-color:var(--blue);color:#fff;}
 .product-detail-dose select{width:180px;padding:14px;border:1px solid #d7dbe8;border-radius:14px;font-size:16px;background:#fff;color:#111;}
 .product-detail-dose select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(47,67,224,.12);}
 .product-detail-dose select option[disabled]{color:#9ca3af;}
@@ -532,6 +540,9 @@ body.locked{overflow:hidden;}
 	.rail-head h2{font-size:28px;}
 	.grid-rail{grid-template-columns:1fr;}
 	.product-detail-purchase{align-items:stretch;}
+	.product-detail-inputs{width:100%;}
+	.product-detail-actions{width:100%;margin-left:0;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+	.dose-options{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 	.product-detail-dose select,.product-detail-qty input,.product-detail-purchase .btn{width:100%;}
 	.product-modal{padding:14px;}
 	.product-modal-card{max-height:calc(100vh - 28px);overflow:auto;}
@@ -606,6 +617,7 @@ footer{background:#1f2937;}
 }
 
 @media(max-width:430px){
+	.product-detail-actions{grid-template-columns:1fr;}
 	.btn,.icon-btn,.mobile-nav-toggle,.hero-best-arrow,.detail-tab,.pill,.policy-btn{min-height:44px;}
 	input,select,textarea{font-size:16px;}
 	.search-wrap{min-height:44px;}
@@ -666,6 +678,7 @@ footer{background:#1f2937;}
 	.product-detail-price{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;line-height:1.15;}
 	.product-detail-price .price-normal{margin-right:0;font-size:.62em;}
 	.product-detail-dose select,.product-detail-qty input{font-size:14px;padding:12px;}
+	.dose-option{font-size:14px;padding:12px;}
 	.product-savings-chart{padding:14px;border-radius:16px;}
 	.product-savings-chart h2{font-size:21px;}
 	.product-savings-chart .sub{font-size:13px;line-height:1.5;}

@@ -51,19 +51,20 @@
         <p class="product-detail-price" id="productDetailPrice"></p>
         <p class="product-detail-summary" id="productDetailSummary"></p>
         <div class="product-detail-purchase">
-          <label class="product-detail-dose" for="productDetailDose">
-            <span>Dosage</span>
-            <select id="productDetailDose" aria-label="Select dosage">
-              <option value="10mg" selected>10mg</option>
-              <option value="20mg" disabled>20mg (Coming Soon)</option>
-              <option value="30mg" disabled>30mg (Coming Soon)</option>
-            </select>
-          </label>
-          <label class="product-detail-qty" for="productDetailQty">
-            <span>Quantity</span>
-            <input type="number" id="productDetailQty" min="1" value="1">
-          </label>
-          <button class="btn primary" id="productDetailAddBtn" type="button">Add to Cart</button>
+          <div class="product-detail-inputs">
+            <div class="product-detail-dose">
+              <span>Dosage</span>
+              <div id="productDetailDoseOptions" class="dose-options"></div>
+            </div>
+            <label class="product-detail-qty" for="productDetailQty">
+              <span>Quantity</span>
+              <input type="number" id="productDetailQty" min="1" value="1">
+            </label>
+          </div>
+          <div class="product-detail-actions">
+            <button class="btn primary" id="productDetailAddBtn" type="button">Add to Cart</button>
+            <button class="btn ghost" id="productDetailCheckoutBtn" type="button">Checkout</button>
+          </div>
         </div>
       </div>
     </section>
