@@ -1,13 +1,36 @@
 // ---------- Product data ----------
 var PRODUCTS = [
-  {id:'bpc157', name:'BPC-157', tag:'ACCELERATED RECOVERY', color:'#e8fbef;color:#16a34a', category:'Recovery', description:'Advanced peptide formula designed to support faster tissue repair and recovery.', price:92.99},
-  {id:'glp3', name:'GLP-3RT', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'A precision peptide blend for metabolic balance and gentle appetite support.', price:75.00},
-  {id:'ghkcu', name:'GHK-Cu', tag:'SKIN & TISSUE REPAIR', color:'#fdeef4;color:#db2777', category:'Repair', description:'Copper peptide complex targeted for skin repair and soft tissue regeneration.', price:49.99},
-  {id:'cjc', name:'CJC-1295 + Ipamorelin', tag:'SUSTAINED GH RELEASE', color:'#fff4e5;color:#d97706', category:'Growth', description:'A sustained release peptide stack for deeper restorative support.', price:94.99},
-  {id:'motsc', name:'MOTS-c', tag:'MITOCHONDRIAL SUPPORT', color:'#e8fbef;color:#16a34a', category:'Cellular', description:'Cellular energy peptide engineered to support mitochondrial function.', price:64.99},
-  {id:'blend', name:'BPC-157 + TB-500', tag:'TISSUE REPAIR', color:'#eef1fc;color:#2f43e0', category:'Recovery', description:'A premium recovery bundle combining BPC-157 with TB-500 for comprehensive tissue support.', price:179.99},
-  {id:'semax', name:'Semax', tag:'FOCUS & NEUROPROTECTION', color:'#fdeef4;color:#db2777', category:'Neuro', description:'A nootropic peptide designed to support focus, cognition, and recovery.', price:79.99},
-  {id:'nad', name:'NAD+', tag:'CELLULAR ENERGY', color:'#fff4e5;color:#d97706', category:'Cellular', description:'A high-purity NAD+ precursor for cellular performance and metabolic recovery.', price:129.99}
+  {id:'ghkcu_100_50', name:'GHK-CU 100mg/50mg', tag:'REPAIR SUPPORT', color:'#fdeef4;color:#db2777', category:'Repair', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'glutathione_1500_600', name:'Glutathione 1500mg/600mg', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'hcg_5000iu', name:'HCG 5000iu', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'ipamorelin_10', name:'Ipamorelin 10mg', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'igf1lr3_1', name:'Igf-1-lr3 1mg', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'klow_80', name:'KLOW', tag:'RECOVERY BLEND', color:'#e8fbef;color:#16a34a', category:'Recovery', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'kpv_10', name:'KPV 10mg', tag:'RECOVERY SUPPORT', color:'#e8fbef;color:#16a34a', category:'Recovery', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'motsc_10', name:'MOTS-C 10mg', tag:'CELLULAR SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Cellular', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'mt1_10', name:'MT1 10mg', tag:'NEURO SUPPORT', color:'#fdeef4;color:#db2777', category:'Neuro', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'mt2_10', name:'MT2 10mg', tag:'NEURO SUPPORT', color:'#fdeef4;color:#db2777', category:'Neuro', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'nad_500', name:'NAD+ 500mg', tag:'CELLULAR SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Cellular', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'reta_10_20_30', name:'GLP-3RT', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'sermorelin_10', name:'Sermorelin acetate 10mg', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'selank_10', name:'Selank 10mg', tag:'NEURO SUPPORT', color:'#fdeef4;color:#db2777', category:'Neuro', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'semax_10', name:'Semax 10mg', tag:'NEURO SUPPORT', color:'#fdeef4;color:#db2777', category:'Neuro', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'ss31_10', name:'Ss-31 10 mg', tag:'CELLULAR SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Cellular', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'thymosin_a1_5', name:'Thymosin alpha 1 5mg', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'tb500_10', name:'Tb500 10mg', tag:'RECOVERY SUPPORT', color:'#e8fbef;color:#16a34a', category:'Recovery', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'tesamorelin_10', name:'Tesamorelin 10mg', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'adamax_10', name:'Adamax 10mg', tag:'NEURO SUPPORT', color:'#fdeef4;color:#db2777', category:'Neuro', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'aod9604_10', name:'Aod9604 10mg', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'ahkcu_50', name:'Ahk-cu 50mg', tag:'REPAIR SUPPORT', color:'#fdeef4;color:#db2777', category:'Repair', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'5amino1mq', name:'5-amino-1mq', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'bpc157_10', name:'Bpc 157 10mg', tag:'RECOVERY SUPPORT', color:'#e8fbef;color:#16a34a', category:'Recovery', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'bpc_tb500_10_10', name:'Bpc 10mg + tb500 10mg', tag:'RECOVERY BLEND', color:'#e8fbef;color:#16a34a', category:'Recovery', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'cagrilinitide_10', name:'Cagrilinitide 10mg', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'cjc1295_nodac_10', name:'Cjc 1295 no DAC 10mg', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'cjc1295_ipa_5', name:'Cjc1295 no dac + ipa 5 mg', tag:'GROWTH BLEND', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'dsip_10', name:'DSIP 10mg', tag:'NEURO SUPPORT', color:'#fdeef4;color:#db2777', category:'Neuro', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'epithalon_10', name:'Epithalon 10mg', tag:'CELLULAR SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Cellular', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00},
+  {id:'tirzepitide_10', name:'Tirzepitide 10mg', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00}
 ];
 var STORAGE_KEY = 'pepxCart';
 var GATE_ACCEPTED_KEY = 'pepxGateAccepted';
@@ -20,6 +43,11 @@ var DEFAULT_PRODUCT_IMAGE_URL = 'assets/products/default-product.png';
 
 function getProductImage(product){
   return (product && product.image) ? product.image : DEFAULT_PRODUCT_IMAGE_URL;
+}
+
+function getProductDisplayName(product){
+  if(!product || !product.name) return '';
+  return product.name.replace(/\s+[\d\.\s]+(?:mg|iu|mq).*$/i, '');
 }
 
 function normalizeCategoryFilter(value){
@@ -237,8 +265,7 @@ function renderProductCards(products, options){
     return '<div class="product-card" data-id="'+p.id+'" role="button" tabindex="0">'+
       '<div class="product-card-media"><img src="'+image+'" alt="'+p.name+' product image" loading="lazy"></div><div class="product-card-body">'+
       '<div class="product-card-meta"><span class="label">'+p.category+'</span><span class="price">$'+p.price.toFixed(2)+'</span></div>'+
-      '<h3>'+p.name+'</h3>'+
-      '<p class="excerpt">'+p.description+'</p>'+
+      '<h3>'+getProductDisplayName(p)+'</h3>'+
       '<div class="product-card-actions"><button class="btn primary add-btn" data-id="'+p.id+'">Add to Cart</button><button class="btn ghost quick-btn" type="button" data-id="'+p.id+'">'+viewLabel+'</button></div>'+
       '</div></div>';
   }).join('');
@@ -438,6 +465,8 @@ function renderProductDetailPage(){
   var descPanel = document.getElementById('productTabPanel');
   var qtyEl = document.getElementById('productDetailQty');
   var addBtn = document.getElementById('productDetailAddBtn');
+  var doseEl = document.getElementById('productDetailDose');
+  var doseLabel = document.querySelector('.product-detail-dose');
   var tabs = page.querySelectorAll('[data-detail-tab]');
   var detailMedia = page.querySelector('.product-detail-media');
   var tabContent = {
@@ -445,10 +474,29 @@ function renderProductDetailPage(){
     disclaimer: buildProductDisclaimer(product)
   };
 
+  if(doseLabel && doseEl){
+    if(product.id === 'reta_10_20_30'){
+      doseLabel.style.display = 'inline-block';
+      doseEl.querySelector('option[value="20mg"]').disabled = false;
+      doseEl.querySelector('option[value="30mg"]').disabled = false;
+    } else {
+      doseLabel.style.display = 'none';
+      doseEl.querySelector('option[value="20mg"]').disabled = true;
+      doseEl.querySelector('option[value="30mg"]').disabled = true;
+    }
+  }
+
   document.title = product.name + ' | PepX Research Chemicals';
-  if(titleEl) titleEl.textContent = product.name;
+  var displayName = product.name;
+  if(product.id === 'klow_80'){
+    if(titleEl) titleEl.innerHTML = 'KLOW<br><span style="font-size:0.6em;font-weight:normal;color:#666;">KPV10mg+BPC10mg+GHK-Cu50mg+TB500 10mg</span>';
+    displayName = 'KLOW';
+  } else {
+    if(titleEl) titleEl.textContent = displayName;
+  }
+  if(titleEl && product.id !== 'klow_80') titleEl.textContent = displayName;
   if(tagEl) tagEl.textContent = product.tag;
-  if(breadcrumbEl) breadcrumbEl.textContent = product.name;
+  if(breadcrumbEl) breadcrumbEl.textContent = displayName;
   if(summaryEl) summaryEl.textContent = product.description;
   renderSavingsRows(product);
   if(detailMedia){
@@ -468,6 +516,9 @@ function renderProductDetailPage(){
   if(qtyEl){
     qtyEl.oninput = updateDetailPrice;
     qtyEl.onchange = updateDetailPrice;
+  }
+  if(doseEl){
+    doseEl.value = '10mg';
   }
   updateDetailPrice();
 
@@ -497,7 +548,11 @@ function renderProductDetailPage(){
       cart[product.id] = (cart[product.id] || 0) + qty;
       renderCart();
       saveCart();
-      showToast(qty + ' × ' + product.name + ' added to cart');
+      var productName = product.name;
+      if(product.id === 'reta_10_20_30' && doseEl){
+        productName += ' (' + doseEl.value + ')';
+      }
+      showToast(qty + ' × ' + productName + ' added to cart');
     });
   }
 

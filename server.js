@@ -483,9 +483,21 @@ app.get('/api/auth/protected', requireAuth, (req, res) => {
   return res.json({ user: toPublicUser(req.user) });
 });
 
-app.get('/api/account/overview', requireAuth, async (req, res) => {
+app.get('/api/account/overview', async (req, res) => {
   try {
-    const user = await findUserById(req.user.id);
+    let sessionUser = req.user || null;
+    if (!sessionUser && req.session.userId) {
+      sessionUser = await findUserById(req.session.userId);
+    }
+
+    if (!sessionUser) {
+      return res.json({
+        profile: null,
+        orders: []
+      });
+    }
+
+    const user = await findUserById(sessionUser.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found.' });
     }
