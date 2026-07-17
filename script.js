@@ -1,37 +1,6 @@
-// ---------- Product data ----------
-var PRODUCTS = [
-  {id:'ghkcu_100_50', name:'GHK-CU', tag:'REPAIR SUPPORT', color:'#fdeef4;color:#db2777', category:'Repair', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['100mg','50mg']},
-  {id:'glutathione_1500_600', name:'Glutathione', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['1500mg','600mg']},
-  {id:'hcg_5000iu', name:'HCG', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['5000iu']},
-  {id:'ipamorelin_10', name:'Ipamorelin', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'igf1lr3_1', name:'Igf-1-lr3', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['1mg']},
-  {id:'klow_80', name:'KLOW', tag:'RECOVERY BLEND', color:'#e8fbef;color:#16a34a', category:'Recovery', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['80mg']},
-  {id:'kpv_10', name:'KPV', tag:'RECOVERY SUPPORT', color:'#e8fbef;color:#16a34a', category:'Recovery', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'motsc_10', name:'MOTS-C', tag:'CELLULAR SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Cellular', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'mt1_10', name:'MT1', tag:'NEURO SUPPORT', color:'#fdeef4;color:#db2777', category:'Neuro', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'mt2_10', name:'MT2', tag:'NEURO SUPPORT', color:'#fdeef4;color:#db2777', category:'Neuro', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'nad_500', name:'NAD+', tag:'CELLULAR SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Cellular', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['500mg']},
-  {id:'reta_10_20_30', name:'GLP-3RT', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg','20mg','30mg']},
-  {id:'sermorelin_10', name:'Sermorelin acetate', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'selank_10', name:'Selank', tag:'NEURO SUPPORT', color:'#fdeef4;color:#db2777', category:'Neuro', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'semax_10', name:'Semax', tag:'NEURO SUPPORT', color:'#fdeef4;color:#db2777', category:'Neuro', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'ss31_10', name:'Ss-31', tag:'CELLULAR SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Cellular', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'thymosin_a1_5', name:'Thymosin alpha 1', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['5mg']},
-  {id:'tb500_10', name:'Tb500', tag:'RECOVERY SUPPORT', color:'#e8fbef;color:#16a34a', category:'Recovery', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'tesamorelin_10', name:'Tesamorelin', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'adamax_10', name:'Adamax', tag:'NEURO SUPPORT', color:'#fdeef4;color:#db2777', category:'Neuro', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'aod9604_10', name:'Aod9604', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'ahkcu_50', name:'Ahk-cu', tag:'REPAIR SUPPORT', color:'#fdeef4;color:#db2777', category:'Repair', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['50mg']},
-  {id:'5amino1mq', name:'5-amino-1mq', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['1mq']},
-  {id:'bpc157_10', name:'Bpc 157', tag:'RECOVERY SUPPORT', color:'#e8fbef;color:#16a34a', category:'Recovery', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'bpc_tb500_10_10', name:'Bpc + tb500', tag:'RECOVERY BLEND', color:'#e8fbef;color:#16a34a', category:'Recovery', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg+10mg']},
-  {id:'cagrilinitide_10', name:'Cagrilinitide', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'cjc1295_nodac_10', name:'Cjc 1295 no DAC', tag:'GROWTH SUPPORT', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'cjc1295_ipa_5', name:'Cjc1295 no dac + ipa', tag:'GROWTH BLEND', color:'#fff4e5;color:#d97706', category:'Growth', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['5mg']},
-  {id:'dsip_10', name:'DSIP', tag:'NEURO SUPPORT', color:'#fdeef4;color:#db2777', category:'Neuro', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'epithalon_10', name:'Epithalon', tag:'CELLULAR SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Cellular', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']},
-  {id:'tirzepitide_10', name:'Tirzepitide', tag:'METABOLIC SUPPORT', color:'#eef1fc;color:#2f43e0', category:'Metabolic', description:'Research-grade peptide reagent for controlled laboratory workflows.', price:100.00, dosages:['10mg']}
-];
+// ---------- Product data (loaded from /api/products) ----------
+var PRODUCTS = [];
+var productsLoaded = false;
 var STORAGE_KEY = 'pepxCart';
 var GATE_ACCEPTED_KEY = 'pepxGateAccepted';
 var cart = {};
@@ -40,6 +9,43 @@ var activeCategory = 'all';
 var activeSort = 'default';
 var currentAuthSession = null;
 var DEFAULT_PRODUCT_IMAGE_URL = 'assets/products/default-product.png';
+
+function apiBase(){
+  if(typeof window !== 'undefined' && window.PEPX_API_BASE){
+    return String(window.PEPX_API_BASE).replace(/\/$/, '');
+  }
+  return '';
+}
+
+function apiUrl(path){
+  return apiBase() + path;
+}
+
+function loadProductsFromApi(){
+  return fetch(apiUrl('/api/products'), { credentials: 'include' })
+    .then(function(res){
+      if(!res.ok) throw new Error('Failed to load products');
+      return res.json();
+    })
+    .then(function(data){
+      PRODUCTS = Array.isArray(data.products) ? data.products.map(function(product){
+        return {
+          id: product.id,
+          name: product.name,
+          description: product.description || '',
+          price: Number(product.price || 0),
+          image: product.image || DEFAULT_PRODUCT_IMAGE_URL,
+          inventory: Number(product.inventory || 0),
+          category: product.category || '',
+          tag: product.tag || '',
+          color: product.color || '',
+          dosages: Array.isArray(product.dosages) ? product.dosages : []
+        };
+      }) : [];
+      productsLoaded = true;
+      return PRODUCTS;
+    });
+}
 
 function getProductImage(product){
   return (product && product.image) ? product.image : DEFAULT_PRODUCT_IMAGE_URL;
@@ -576,7 +582,7 @@ function renderProductDetailPage(){
   if(checkoutBtn){
     checkoutBtn.addEventListener('click', function(){
       if(addDetailProductToCart()){
-        window.location.href = 'checkout.html';
+        window.location.href = 'cart.html';
       }
     });
   }
@@ -612,30 +618,57 @@ function changeQty(id, delta){
 }
 function removeItem(id){ delete cart[id]; renderCart(); saveCart(); }
 
+function getCartTotals(){
+  var ids = Object.keys(cart);
+  var count = 0;
+  var subtotal = 0;
+  ids.forEach(function(id){
+    var product = PRODUCTS.find(function(x){ return x.id === id; });
+    var qty = Number(cart[id] || 0);
+    if(!product || qty <= 0) return;
+    count += qty;
+    subtotal += qty * Number(product.price || 0);
+  });
+  return {
+    count: count,
+    subtotal: Math.round(subtotal * 100) / 100,
+    total: Math.round(subtotal * 100) / 100
+  };
+}
+
 function renderCart(){
   var body = document.getElementById('cartBody');
   var checkout = document.getElementById('checkoutCart');
-  var ids = Object.keys(cart);
-  var count = 0, total = 0;
-  ids.forEach(function(id){ count += cart[id]; total += cart[id]*PRODUCTS.find(function(x){return x.id===id;}).price; });
+  var ids = Object.keys(cart).filter(function(id){
+    return PRODUCTS.some(function(product){ return product.id === id; }) && cart[id] > 0;
+  });
+  var totals = getCartTotals();
   var badge = document.getElementById('cartCount');
   if(badge){
-    badge.textContent = count;
-    badge.style.display = count>0 ? 'flex' : 'none';
+    badge.textContent = totals.count;
+    badge.style.display = totals.count > 0 ? 'flex' : 'none';
   }
+  var subtotalEl = document.getElementById('cartSubtotal');
+  if(subtotalEl){ subtotalEl.textContent = '$' + totals.subtotal.toFixed(2); }
   var totalEl = document.getElementById('cartTotal');
-  if(totalEl){ totalEl.textContent = '$'+total.toFixed(2); }
+  if(totalEl){ totalEl.textContent = '$' + totals.total.toFixed(2); }
+  var checkoutBtn = document.getElementById('checkoutBtn');
+  if(checkoutBtn){
+    checkoutBtn.disabled = !ids.length;
+  }
   if(!ids.length){
     if(body) body.innerHTML = '<p class="cart-empty">Your cart is empty.</p>';
-    if(checkout) checkout.innerHTML = '<p class="cart-empty">Your cart is empty.</p>';
+    if(checkout) checkout.innerHTML = '<p class="cart-empty">Your cart is empty. <a href="shop.html">Continue shopping</a></p>';
     return;
   }
   var itemsHtml = ids.map(function(id){
     var p = PRODUCTS.find(function(x){return x.id===id;});
-    return '<div class="cart-item"><div class="thumb"></div><div class="info">'+
-      '<div class="nm">'+p.name+'</div><div class="pr">$'+p.price.toFixed(2)+'</div>'+ 
-      '<div class="qty"><button data-dec="'+id+'">-</button><span>'+cart[id]+'</span><button data-inc="'+id+'">+</button></div>'+ 
-      '</div><button class="rm" data-rm="'+id+'">Remove</button></div>';
+    var lineTotal = (cart[id] * p.price).toFixed(2);
+    return '<div class="cart-item"><div class="thumb" style="background-image:url(\''+getProductImage(p)+'\')"></div><div class="info">'+
+      '<div class="nm">'+escapeHtml(p.name)+'</div><div class="pr">$'+p.price.toFixed(2)+' each</div>'+
+      '<div class="qty"><button type="button" data-dec="'+id+'" aria-label="Decrease quantity">-</button><span>'+cart[id]+'</span><button type="button" data-inc="'+id+'" aria-label="Increase quantity">+</button></div>'+
+      '<div class="line-total">Line: $'+lineTotal+'</div>'+
+      '</div><button class="rm" type="button" data-rm="'+id+'">Remove</button></div>';
   }).join('');
   if(body) body.innerHTML = itemsHtml;
   if(checkout) checkout.innerHTML = itemsHtml;
@@ -653,6 +686,98 @@ function renderCart(){
   };
   attachHandlers(body);
   attachHandlers(checkout);
+}
+
+function getCartCheckoutItems(){
+  return Object.keys(cart).map(function(id){
+    var product = getProductById(id);
+    if(!product || !cart[id]) return null;
+    return {
+      productId: id,
+      quantity: cart[id]
+    };
+  }).filter(Boolean);
+}
+
+function startStripeCheckout(){
+  var items = getCartCheckoutItems();
+  if(!items.length){
+    showToast('Your cart is empty');
+    return Promise.resolve();
+  }
+
+  var checkoutBtn = document.getElementById('checkoutBtn');
+  if(checkoutBtn){
+    checkoutBtn.disabled = true;
+    checkoutBtn.textContent = 'Redirecting…';
+  }
+
+  return fetch(apiUrl('/api/create-checkout-session'), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items: items })
+  }).then(function(res){
+    return res.json().then(function(data){
+      if(!res.ok) throw new Error(data.error || 'Unable to start checkout');
+      return data;
+    });
+  }).then(function(data){
+    if(data.url){
+      window.location.href = data.url;
+      return;
+    }
+    throw new Error('Checkout URL missing from server response.');
+  }).catch(function(err){
+    showToast(err.message || 'Checkout failed.');
+    if(checkoutBtn){
+      checkoutBtn.disabled = false;
+      checkoutBtn.textContent = 'Checkout with Stripe';
+    }
+  });
+}
+
+function initSuccessPage(){
+  var page = document.querySelector('[data-success-page]');
+  if(!page) return;
+
+  var statusEl = document.getElementById('successStatus');
+  var detailsEl = document.getElementById('successDetails');
+  var params = new URLSearchParams(window.location.search);
+  var sessionId = params.get('session_id');
+
+  if(!sessionId){
+    if(statusEl) statusEl.textContent = 'Missing checkout session.';
+    return;
+  }
+
+  fetch(apiUrl('/api/checkout-session/' + encodeURIComponent(sessionId)), { credentials: 'include' })
+    .then(function(res){
+      return res.json().then(function(data){
+        if(!res.ok) throw new Error(data.error || 'Unable to verify payment');
+        return data;
+      });
+    })
+    .then(function(data){
+      if(data.session && data.session.paymentStatus === 'paid'){
+        cart = {};
+        saveCart();
+        renderCart();
+        if(statusEl) statusEl.textContent = 'Payment successful. Thank you for your order.';
+        if(detailsEl){
+          var orderId = data.order ? data.order.id : 'pending';
+          detailsEl.innerHTML = '<p>Order ID: <strong>'+escapeHtml(orderId)+'</strong></p>'+
+            '<p>Amount: <strong>$'+Number(data.session.amountTotal || 0).toFixed(2)+'</strong></p>'+
+            (data.session.customerEmail ? '<p>Receipt email: '+escapeHtml(data.session.customerEmail)+'</p>' : '')+
+            '<p><a class="btn primary" href="shop.html">Continue Shopping</a> <a class="btn ghost" href="account.html">View Account</a></p>';
+        }
+        return;
+      }
+      if(statusEl) statusEl.textContent = 'Payment is still processing. Refresh this page in a moment.';
+    })
+    .catch(function(err){
+      if(statusEl) statusEl.textContent = err.message || 'Unable to confirm payment.';
+    });
 }
 
 function openCart(){
@@ -694,7 +819,7 @@ function authApi(path, options){
     request.headers['Content-Type'] = request.headers['Content-Type'] || 'application/json';
   }
 
-  return fetch(path, request).then(function(res){
+  return fetch(apiUrl(path), request).then(function(res){
     return res.json().catch(function(){ return {}; }).then(function(data){
       if(!res.ok){
         var error = new Error(data.error || 'Request failed');
@@ -1339,13 +1464,24 @@ window.addEventListener('DOMContentLoaded', function(){
   initShopCategoryFromUrl();
   initMenuDropdowns();
   initMobileNav();
-  renderProducts(initialSearchQuery);
-  renderHeroBestSellers();
-  renderCart();
-  renderProductDetailPage();
-  initAccountPage();
   initGate();
   initAuth();
+  initSuccessPage();
+
+  loadProductsFromApi().then(function(){
+    renderProducts(initialSearchQuery);
+    renderHeroBestSellers();
+    renderCart();
+    renderProductDetailPage();
+    initAccountPage();
+  }).catch(function(err){
+    console.error(err);
+    var grid = document.getElementById('productGrid');
+    if(grid) grid.innerHTML = '<div class="review-empty">Unable to load products. Please refresh.</div>';
+    showToast('Unable to load products from server.');
+    renderCart();
+    initAccountPage();
+  });
 
   // FAQ accordion
   document.addEventListener('click', function(e){
@@ -1455,37 +1591,7 @@ window.addEventListener('DOMContentLoaded', function(){
   var checkoutBtnEl = document.getElementById('checkoutBtn');
   if(checkoutBtnEl){
     checkoutBtnEl.addEventListener('click', function(){
-      if(!Object.keys(cart).length){ showToast('Your cart is empty'); return; }
-      if(!currentAuthSession){
-        showToast('Please sign in to place your order.');
-        openAuthModal('login');
-        return;
-      }
-
-      var items = Object.keys(cart).map(function(id){
-        var product = getProductById(id);
-        return {
-          productId: id,
-          name: product ? product.name : id,
-          quantity: cart[id],
-          unitPrice: product ? product.price : 0
-        };
-      });
-
-      authApi('/api/account/orders', {
-        method: 'POST',
-        body: JSON.stringify({ items: items })
-      }).then(function(){
-        cart = {};
-        renderCart();
-        closeCart();
-        showToast('Order placed successfully.');
-        if(window.location.pathname.indexOf('checkout.html') !== -1){
-          window.location.href = 'account.html';
-        }
-      }).catch(function(err){
-        showToast(err.message || 'Failed to place order.');
-      });
+      startStripeCheckout();
     });
   }
 

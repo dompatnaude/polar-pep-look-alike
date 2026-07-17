@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin | PepX Research Chemicals</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="admin-body">
+  <div class="notice-bar">Admin dashboard — authorized personnel only</div>
+  <header><div class="container nav">
+    <a href="index.html" class="logo"><span class="logo-mark" aria-label="PepX Research Chemicals"><span class="logo-word"><span class="logo-pep">pep</span><span class="logo-x">X</span></span><span class="logo-sub">research chemicals</span></span></a>
+    <nav class="menu" id="site-menu">
+      <a href="index.html">Storefront</a>
+      <a href="shop.html">Shop</a>
+      <a href="/admin">Admin</a>
+    </nav>
+  </div></header>
+
+  <main class="container admin-page">
+    <section class="section" id="adminGate">
+      <h1>Admin Login Required</h1>
+      <p class="sub">Sign in with an admin account to manage products and orders.</p>
+      <p class="auth-message" id="adminGateMessage" aria-live="polite"></p>
+      <form id="adminLoginForm" class="account-form admin-login-form">
+        <label>
+          <span>Email</span>
+          <input type="email" name="email" required>
+        </label>
+        <label>
+          <span>Password</span>
+          <input type="password" name="password" required minlength="8">
+        </label>
+        <button type="submit" class="btn primary">Sign In</button>
+      </form>
+    </section>
+
+    <section class="section admin-dashboard hidden" id="adminDashboard">
+      <div class="account-head">
+        <h1>Admin Dashboard</h1>
+        <button type="button" class="btn ghost" id="adminLogoutBtn">Log Out</button>
+      </div>
+      <p class="sub">Manage catalog inventory and fulfillment status.</p>
+      <p class="auth-message" id="adminMessage" aria-live="polite"></p>
+
+      <div class="admin-tabs" role="tablist">
+        <button type="button" class="detail-tab active" data-admin-tab="products">Products</button>
+        <button type="button" class="detail-tab" data-admin-tab="orders">Orders</button>
+      </div>
+
+      <div id="adminProductsPanel" class="admin-panel">
+        <div class="admin-panel-head">
+          <h2>Products</h2>
+          <button type="button" class="btn primary" id="adminNewProductBtn">Add Product</button>
+        </div>
+
+        <form id="adminProductForm" class="account-form admin-product-form hidden">
+          <input type="hidden" name="id">
+          <div class="admin-form-grid">
+            <label><span>Name</span><input type="text" name="name" required></label>
+            <label><span>Price</span><input type="number" name="price" min="0" step="0.01" required></label>
+            <label><span>Inventory</span><input type="number" name="inventory" min="0" step="1" required></label>
+            <label><span>Category</span><input type="text" name="category"></label>
+            <label><span>Tag</span><input type="text" name="tag"></label>
+            <label><span>Image URL/path</span><input type="text" name="image" placeholder="assets/products/default-product.png"></label>
+            <label class="admin-span-2"><span>Dosages (comma separated)</span><input type="text" name="dosages" placeholder="10mg, 20mg"></label>
+            <label class="admin-span-2"><span>Description</span><textarea name="description" rows="3"></textarea></label>
+          </div>
+          <div class="admin-form-actions">
+            <button type="submit" class="btn primary">Save Product</button>
+            <button type="button" class="btn ghost" id="adminCancelProductBtn">Cancel</button>
+          </div>
+        </form>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="adminProductsTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Inventory</th>
+                <th>Category</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="adminOrdersPanel" class="admin-panel hidden">
+        <div class="admin-panel-head">
+          <h2>Orders</h2>
+        </div>
+        <div class="admin-table-wrap">
+          <table class="admin-table" id="adminOrdersTable">
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Date</th>
+                <th>Total</th>
+                <th>Payment</th>
+                <th>Status</th>
+                <th>Items</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer><div class="container">
+    <div class="copy">&copy; 2026 PepX Research Chemicals. Admin console.</div>
+  </div></footer>
+
+  <div class="toast" id="toast"></div>
+  <script src="admin.js"></script>
+</body>
+</html>

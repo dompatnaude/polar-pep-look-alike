@@ -702,3 +702,38 @@ footer{background:#1f2937;}
 	.stats .n{font-size:10.5px;line-height:1.15;}
 	.stats .l{font-size:9.5px;line-height:1.25;}
 }
+
+/* Cart + checkout summary */
+.page-cart .cart-summary{flex-direction:column;align-items:stretch;}
+.page-cart .cart-summary .tot{width:100%;margin-bottom:8px;}
+.page-cart .cart-summary .btn{width:100%;justify-content:center;}
+.cart-item .thumb{background-size:cover;background-position:center;background-repeat:no-repeat;}
+.cart-item .line-total{font-size:12px;color:var(--muted);margin-top:4px;}
+.success-panel{max-width:720px;}
+.success-panel #successDetails{margin-top:18px;display:grid;gap:10px;}
+.success-panel .btn{margin-right:8px;margin-top:8px;}
+
+/* Admin dashboard */
+.admin-body{background:linear-gradient(180deg,#f7f8fd 0%,#ffffff 42%);}
+.admin-page{padding-bottom:60px;}
+.admin-login-form{max-width:420px;margin-top:18px;}
+.admin-tabs{display:flex;gap:10px;margin:22px 0 18px;}
+.admin-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;}
+.admin-panel-head h2{margin:0;font-size:22px;}
+.admin-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+.admin-span-2{grid-column:span 2;}
+.admin-form-actions{display:flex;gap:10px;margin-top:14px;}
+.admin-table-wrap{overflow:auto;border:1px solid #e7e9f2;border-radius:16px;background:#fff;}
+.admin-table{width:100%;border-collapse:collapse;min-width:720px;}
+.admin-table th,.admin-table td{padding:12px 14px;border-bottom:1px solid #eef0f6;text-align:left;vertical-align:top;font-size:14px;}
+.admin-table th{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:#fafbff;}
+.admin-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.admin-muted{color:var(--muted);font-size:12px;margin-top:4px;word-break:break-all;}
+.admin-product-form{margin-bottom:18px;padding:18px;border:1px solid #e7e9f2;border-radius:16px;background:#fff;}
+.hidden{display:none!important;}
+.auth-message.error{color:#b42318;}
+@media(max-width:720px){
+	.admin-form-grid{grid-template-columns:1fr;}
+	.admin-span-2{grid-column:span 1;}
+	.admin-panel-head{flex-direction:column;align-items:flex-start;}
+}

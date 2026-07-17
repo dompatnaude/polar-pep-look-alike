@@ -5,14 +5,29 @@ const path = require('path');
 const crypto = require('crypto');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const Stripe = require('stripe');
 const { getDb } = require('./db/connection');
 const { runMigrations } = require('./db/migrate');
+const {
+  listProducts,
+  getProductById,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  decrementInventory,
+  toMoney
+} = require('./db/products');
 
 require('dotenv').config();
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-session-secret-change-me';
+const APP_BASE_URL = String(process.env.APP_BASE_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+const CLIENT_ORIGIN = String(process.env.CLIENT_ORIGIN || '').replace(/\/$/, '');
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const STRIPE_PUBLIC_KEY = process.env.STRIPE_PUBLIC_KEY || '';
+const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
@@ -24,7 +39,8 @@ function toPublicUser(user) {
     name: user.name,
     email: user.email,
     institution: user.institution || '',
-    provider: user.provider || 'Email'
+    provider: user.provider || 'Email',
+    isAdmin: !!user.isAdmin
   };
 }
 
@@ -37,7 +53,8 @@ function mapUserRow(row) {
     institution: row.institution,
     provider: row.provider,
     passwordHash: row.password_hash || '',
-    googleId: row.google_id || ''
+    googleId: row.google_id || '',
+    isAdmin: !!row.is_admin
   };
 }
 
@@ -53,11 +70,6 @@ function mapAddressRow(row) {
     billingAddress: row.billing_address || '',
     shippingAddress: row.shipping_address || ''
   };
-}
-
-function toMoney(value) {
-  const num = Number(value || 0);
-  return Math.round(num * 100) / 100;
 }
 
 function sanitizeReturnPath(value) {
@@ -150,25 +162,38 @@ async function saveAddressByUserId(userId, nextAddress) {
   );
 }
 
-async function listOrdersByUserId(userId) {
+async function resolveSessionUser(req) {
+  if (req.user) return req.user;
+  if (!req.session.userId) return null;
+  const sessionUser = await findUserById(req.session.userId);
+  if (!sessionUser) {
+    req.session.destroy(() => {});
+    return null;
+  }
+  req.user = sessionUser;
+  return sessionUser;
+}
+
+function mapOrderRow(row, items = []) {
+  return {
+    id: row.id,
+    userId: row.user_id || null,
+    stripePaymentId: row.stripe_payment_id || null,
+    status: row.status,
+    total: toMoney(row.total),
+    totalAmount: toMoney(row.total),
+    createdAt: row.created_at,
+    items
+  };
+}
+
+async function listOrderItems(orderIds) {
+  if (!orderIds.length) return new Map();
   const db = await getDb();
-  const orderRows = await db.all(
-    `
-    SELECT id, status, total_amount, created_at
-    FROM orders
-    WHERE user_id = ?
-    ORDER BY datetime(created_at) DESC;
-    `,
-    userId
-  );
-
-  if (!orderRows.length) return [];
-
-  const orderIds = orderRows.map((row) => row.id);
   const placeholders = orderIds.map(() => '?').join(',');
   const itemRows = await db.all(
     `
-    SELECT order_id, product_id, product_name, unit_price, quantity, line_total
+    SELECT id, order_id, product_id, product_name, price, quantity
     FROM order_items
     WHERE order_id IN (${placeholders})
     ORDER BY id ASC;
@@ -180,78 +205,116 @@ async function listOrdersByUserId(userId) {
   itemRows.forEach((row) => {
     const existing = itemsByOrderId.get(row.order_id) || [];
     existing.push({
+      id: row.id,
       productId: row.product_id,
       name: row.product_name,
-      unitPrice: toMoney(row.unit_price),
+      unitPrice: toMoney(row.price),
+      price: toMoney(row.price),
       quantity: Number(row.quantity || 0),
-      lineTotal: toMoney(row.line_total)
+      lineTotal: toMoney(Number(row.quantity || 0) * Number(row.price || 0))
     });
     itemsByOrderId.set(row.order_id, existing);
   });
-
-  return orderRows.map((row) => ({
-    id: row.id,
-    status: row.status,
-    totalAmount: toMoney(row.total_amount),
-    createdAt: row.created_at,
-    items: itemsByOrderId.get(row.id) || []
-  }));
+  return itemsByOrderId;
 }
 
-async function createOrderByUserId(userId, payloadItems) {
-  const items = Array.isArray(payloadItems) ? payloadItems : [];
-  if (!items.length) {
+async function listOrdersByUserId(userId) {
+  const db = await getDb();
+  const orderRows = await db.all(
+    `
+    SELECT id, user_id, stripe_payment_id, status, total, created_at
+    FROM orders
+    WHERE user_id = ?
+    ORDER BY datetime(created_at) DESC;
+    `,
+    userId
+  );
+
+  const itemsByOrderId = await listOrderItems(orderRows.map((row) => row.id));
+  return orderRows.map((row) => mapOrderRow(row, itemsByOrderId.get(row.id) || []));
+}
+
+async function listAllOrders() {
+  const db = await getDb();
+  const orderRows = await db.all(
+    `
+    SELECT id, user_id, stripe_payment_id, status, total, created_at
+    FROM orders
+    ORDER BY datetime(created_at) DESC;
+    `
+  );
+  const itemsByOrderId = await listOrderItems(orderRows.map((row) => row.id));
+  return orderRows.map((row) => mapOrderRow(row, itemsByOrderId.get(row.id) || []));
+}
+
+async function getOrderByStripePaymentId(stripePaymentId) {
+  const db = await getDb();
+  const row = await db.get(
+    'SELECT id, user_id, stripe_payment_id, status, total, created_at FROM orders WHERE stripe_payment_id = ?;',
+    stripePaymentId
+  );
+  if (!row) return null;
+  const itemsByOrderId = await listOrderItems([row.id]);
+  return mapOrderRow(row, itemsByOrderId.get(row.id) || []);
+}
+
+async function createOrderRecord({ userId = null, stripePaymentId = null, status = 'Paid', items }) {
+  const payloadItems = Array.isArray(items) ? items : [];
+  if (!payloadItems.length) {
     throw new Error('Order must include at least one item.');
   }
 
-  const normalizedItems = items.map((item) => {
-    const name = String(item.name || '').trim();
+  const normalizedItems = [];
+  for (const item of payloadItems) {
+    const productId = String(item.productId || item.id || '').trim();
     const quantity = Math.max(1, Number(item.quantity || 0));
-    const unitPrice = toMoney(item.unitPrice);
-    const productId = String(item.productId || '').trim();
+    const product = await getProductById(productId);
+    const name = String(item.name || (product && product.name) || '').trim();
+    const unitPrice = toMoney(item.unitPrice !== undefined ? item.unitPrice : item.price !== undefined ? item.price : product && product.price);
 
-    if (!name || !productId || !Number.isFinite(unitPrice) || unitPrice <= 0) {
+    if (!productId || !name || !Number.isFinite(unitPrice) || unitPrice <= 0) {
       throw new Error('Invalid order item payload.');
     }
 
-    return {
+    normalizedItems.push({
       productId,
       name,
       quantity,
       unitPrice,
       lineTotal: toMoney(quantity * unitPrice)
-    };
-  });
+    });
+  }
 
   const orderId = crypto.randomUUID();
-  const totalAmount = toMoney(normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0));
+  const total = toMoney(normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0));
   const db = await getDb();
 
   await db.exec('BEGIN;');
   try {
     await db.run(
-      'INSERT INTO orders (id, user_id, status, total_amount) VALUES (?, ?, ?, ?);',
+      'INSERT INTO orders (id, user_id, stripe_payment_id, status, total) VALUES (?, ?, ?, ?, ?);',
       orderId,
-      userId,
-      'Processing',
-      totalAmount
+      userId || null,
+      stripePaymentId || null,
+      status,
+      total
     );
 
     for (const item of normalizedItems) {
       await db.run(
         `
-        INSERT INTO order_items (order_id, product_id, product_name, unit_price, quantity, line_total)
-        VALUES (?, ?, ?, ?, ?, ?);
+        INSERT INTO order_items (order_id, product_id, product_name, price, quantity)
+        VALUES (?, ?, ?, ?, ?);
         `,
         orderId,
         item.productId,
         item.name,
         item.unitPrice,
-        item.quantity,
-        item.lineTotal
+        item.quantity
       );
     }
 
+    await decrementInventory(normalizedItems);
     await db.exec('COMMIT;');
   } catch (error) {
     await db.exec('ROLLBACK;');
@@ -260,11 +323,88 @@ async function createOrderByUserId(userId, payloadItems) {
 
   return {
     id: orderId,
-    status: 'Processing',
-    totalAmount,
+    userId: userId || null,
+    stripePaymentId: stripePaymentId || null,
+    status,
+    total,
+    totalAmount: total,
     items: normalizedItems
   };
 }
+
+async function createOrderFromStripeSession(session) {
+  if (!session || session.payment_status !== 'paid') {
+    throw new Error('Checkout session is not paid.');
+  }
+
+  const paymentId = session.payment_intent || session.id;
+  const existing = await getOrderByStripePaymentId(paymentId);
+  if (existing) return { order: existing, created: false };
+
+  let metadataItems = [];
+  let intentUserId = null;
+  const intentId = session.metadata && session.metadata.checkout_intent_id;
+  const db = await getDb();
+  if (intentId) {
+    const intent = await db.get('SELECT items_json, user_id FROM checkout_intents WHERE id = ?;', intentId);
+    if (intent) {
+      intentUserId = intent.user_id || null;
+      if (intent.items_json) {
+        try {
+          const parsed = JSON.parse(intent.items_json);
+          if (Array.isArray(parsed)) metadataItems = parsed;
+        } catch (error) {
+          metadataItems = [];
+        }
+      }
+    }
+  }
+
+  let lineItems = [];
+  if (!metadataItems.length && stripe) {
+    const stripeItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 100 });
+    lineItems = stripeItems.data || [];
+  }
+
+  const items = metadataItems.length
+    ? metadataItems.map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice
+      }))
+    : lineItems.map((item) => ({
+        productId: (item.price && item.price.product) || item.id,
+        name: item.description || 'Product',
+        quantity: item.quantity || 1,
+        unitPrice: toMoney((item.amount_total || 0) / 100 / Math.max(1, item.quantity || 1))
+      }));
+
+  const metadataUserId = session.metadata && session.metadata.user_id ? session.metadata.user_id : null;
+  const userId = intentUserId || metadataUserId || null;
+  const order = await createOrderRecord({
+    userId,
+    stripePaymentId: paymentId,
+    status: 'Paid',
+    items
+  });
+
+  if (intentId) {
+    await db.run('DELETE FROM checkout_intents WHERE id = ?;', intentId);
+  }
+
+  return { order, created: true };
+}
+
+app.use((req, res, next) => {
+  if (!CLIENT_ORIGIN) return next();
+  res.header('Access-Control-Allow-Origin', CLIENT_ORIGIN);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  return next();
+});
 
 app.use(express.json());
 app.use(
@@ -276,7 +416,7 @@ app.use(
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: process.env.NODE_ENV === 'production' && CLIENT_ORIGIN ? 'none' : 'lax',
       maxAge: 1000 * 60 * 60 * 24 * 7
     }
   })
@@ -355,24 +495,37 @@ if (googleConfigured) {
 
 async function requireAuth(req, res, next) {
   try {
-    if (!req.user && !req.session.userId) {
+    const user = await resolveSessionUser(req);
+    if (!user) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-
-    if (!req.user && req.session.userId) {
-      const sessionUser = await findUserById(req.session.userId);
-      if (!sessionUser) {
-        req.session.destroy(() => {});
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-      req.user = sessionUser;
-    }
-
     return next();
   } catch (error) {
     return next(error);
   }
 }
+
+async function requireAdmin(req, res, next) {
+  try {
+    const user = await resolveSessionUser(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!user.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required.' });
+    }
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+app.get('/api/config', (req, res) => {
+  return res.json({
+    stripePublicKey: STRIPE_PUBLIC_KEY || null,
+    stripeEnabled: !!stripe
+  });
+});
 
 app.post('/api/auth/signup', async (req, res) => {
   const { name, email, password, institution } = req.body || {};
@@ -402,9 +555,17 @@ app.post('/api/auth/signup', async (req, res) => {
   };
 
   await saveOrUpdateUser(user);
-  req.session.userId = user.id;
 
-  return res.status(201).json({ user: toPublicUser(user) });
+  const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL || '');
+  if (adminEmail && normalizedEmail === adminEmail) {
+    const db = await getDb();
+    await db.run('UPDATE users SET is_admin = 1 WHERE id = ?;', user.id);
+    user.isAdmin = true;
+  }
+
+  req.session.userId = user.id;
+  const saved = await findUserById(user.id);
+  return res.status(201).json({ user: toPublicUser(saved || user) });
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -440,16 +601,8 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.get('/api/auth/session', async (req, res) => {
   try {
-    if (req.user) {
-      return res.json({ user: toPublicUser(req.user) });
-    }
-    if (req.session.userId) {
-      const user = await findUserById(req.session.userId);
-      if (user) {
-        return res.json({ user: toPublicUser(user) });
-      }
-    }
-    return res.json({ user: null });
+    const user = await resolveSessionUser(req);
+    return res.json({ user: user ? toPublicUser(user) : null });
   } catch (error) {
     return res.status(500).json({ error: 'Failed to load auth session.' });
   }
@@ -473,8 +626,13 @@ app.get('/auth/google/callback', (req, res, next) => {
   const returnTo = sanitizeReturnPath(req.session.oauthReturnTo) || '/account.html';
   delete req.session.oauthReturnTo;
 
-  return passport.authenticate('google', { failureRedirect: withAuthQuery(returnTo, 'google-failed') })(req, res, () => {
+  return passport.authenticate('google', { failureRedirect: withAuthQuery(returnTo, 'google-failed') })(req, res, async () => {
     req.session.userId = req.user.id;
+    const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL || '');
+    if (adminEmail && normalizeEmail(req.user.email) === adminEmail) {
+      const db = await getDb();
+      await db.run('UPDATE users SET is_admin = 1 WHERE id = ?;', req.user.id);
+    }
     res.redirect(withAuthQuery(returnTo, 'google-success'));
   });
 });
@@ -483,12 +641,211 @@ app.get('/api/auth/protected', requireAuth, (req, res) => {
   return res.json({ user: toPublicUser(req.user) });
 });
 
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await listProducts();
+    return res.json({ products });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to load products.' });
+  }
+});
+
+app.get('/api/products/:id', async (req, res) => {
+  try {
+    const product = await getProductById(req.params.id);
+    if (!product) return res.status(404).json({ error: 'Product not found.' });
+    return res.json({ product });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to load product.' });
+  }
+});
+
+app.post('/api/products', requireAdmin, async (req, res) => {
+  try {
+    const product = await createProduct(req.body || {});
+    return res.status(201).json({ product });
+  } catch (error) {
+    const status = error.statusCode || (String(error.message || '').includes('required') || String(error.message || '').includes('exists') ? 400 : 500);
+    return res.status(status).json({ error: error.message || 'Failed to create product.' });
+  }
+});
+
+app.put('/api/products/:id', requireAdmin, async (req, res) => {
+  try {
+    const product = await updateProduct(req.params.id, req.body || {});
+    return res.json({ product });
+  } catch (error) {
+    const status = error.statusCode || (String(error.message || '').includes('required') ? 400 : 500);
+    return res.status(status).json({ error: error.message || 'Failed to update product.' });
+  }
+});
+
+app.delete('/api/products/:id', requireAdmin, async (req, res) => {
+  try {
+    await deleteProduct(req.params.id);
+    return res.json({ ok: true });
+  } catch (error) {
+    const status = error.statusCode || 500;
+    return res.status(status).json({ error: error.message || 'Failed to delete product.' });
+  }
+});
+
+app.post('/api/create-checkout-session', async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(503).json({ error: 'Stripe is not configured. Set STRIPE_SECRET_KEY.' });
+    }
+
+    const items = Array.isArray(req.body && req.body.items) ? req.body.items : [];
+    if (!items.length) {
+      return res.status(400).json({ error: 'Cart items are required.' });
+    }
+
+    const lineItems = [];
+    const cartMeta = [];
+
+    for (const item of items) {
+      const productId = String(item.productId || item.id || '').trim();
+      const quantity = Math.max(1, parseInt(item.quantity, 10) || 0);
+      const product = await getProductById(productId);
+
+      if (!product) {
+        return res.status(400).json({ error: `Unknown product: ${productId}` });
+      }
+      if (product.inventory < quantity) {
+        return res.status(400).json({ error: `Insufficient inventory for ${product.name}.` });
+      }
+
+      lineItems.push({
+        quantity,
+        price_data: {
+          currency: 'usd',
+          unit_amount: Math.round(product.price * 100),
+          product_data: {
+            name: product.name,
+            description: product.description || undefined,
+            images: product.image && /^https?:\/\//i.test(product.image) ? [product.image] : undefined,
+            metadata: { product_id: product.id }
+          }
+        }
+      });
+
+      cartMeta.push({
+        productId: product.id,
+        name: product.name,
+        quantity,
+        unitPrice: product.price
+      });
+    }
+
+    const sessionUser = await resolveSessionUser(req);
+    const successUrl = `${APP_BASE_URL}/success.html?session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${APP_BASE_URL}/cart.html`;
+    const intentId = crypto.randomUUID();
+    const db = await getDb();
+    await db.run(
+      'INSERT INTO checkout_intents (id, user_id, items_json) VALUES (?, ?, ?);',
+      intentId,
+      sessionUser ? sessionUser.id : null,
+      JSON.stringify(cartMeta)
+    );
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      payment_method_types: ['card'],
+      line_items: lineItems,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      customer_email: sessionUser ? sessionUser.email : undefined,
+      metadata: {
+        user_id: sessionUser ? sessionUser.id : '',
+        checkout_intent_id: intentId
+      }
+    });
+
+    return res.json({
+      id: session.id,
+      url: session.url,
+      publicKey: STRIPE_PUBLIC_KEY || null
+    });
+  } catch (error) {
+    console.error('Stripe checkout error:', error);
+    return res.status(500).json({ error: error.message || 'Failed to create checkout session.' });
+  }
+});
+
+app.get('/api/checkout-session/:sessionId', async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(503).json({ error: 'Stripe is not configured.' });
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'Checkout session not found.' });
+    }
+
+    let order = null;
+    let created = false;
+    if (session.payment_status === 'paid') {
+      const result = await createOrderFromStripeSession(session);
+      order = result.order;
+      created = result.created;
+    }
+
+    return res.json({
+      session: {
+        id: session.id,
+        paymentStatus: session.payment_status,
+        amountTotal: toMoney((session.amount_total || 0) / 100),
+        customerEmail: session.customer_details && session.customer_details.email
+      },
+      order,
+      created
+    });
+  } catch (error) {
+    console.error('Checkout session lookup failed:', error);
+    return res.status(500).json({ error: 'Failed to verify checkout session.' });
+  }
+});
+
+app.get('/api/admin/orders', requireAdmin, async (req, res) => {
+  try {
+    const orders = await listAllOrders();
+    return res.json({ orders });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to load orders.' });
+  }
+});
+
+app.put('/api/admin/orders/:id/status', requireAdmin, async (req, res) => {
+  try {
+    const status = String((req.body && req.body.status) || '').trim();
+    const allowed = ['Processing', 'Paid', 'Shipped', 'Completed', 'Cancelled', 'Refunded'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ error: `Status must be one of: ${allowed.join(', ')}` });
+    }
+
+    const db = await getDb();
+    const result = await db.run('UPDATE orders SET status = ? WHERE id = ?;', status, req.params.id);
+    if (!result.changes) {
+      return res.status(404).json({ error: 'Order not found.' });
+    }
+
+    const row = await db.get(
+      'SELECT id, user_id, stripe_payment_id, status, total, created_at FROM orders WHERE id = ?;',
+      req.params.id
+    );
+    const itemsByOrderId = await listOrderItems([req.params.id]);
+    return res.json({ order: mapOrderRow(row, itemsByOrderId.get(row.id) || []) });
+  } catch (error) {
+    return res.status(500).json({ error: 'Failed to update order status.' });
+  }
+});
+
 app.get('/api/account/overview', async (req, res) => {
   try {
-    let sessionUser = req.user || null;
-    if (!sessionUser && req.session.userId) {
-      sessionUser = await findUserById(req.session.userId);
-    }
+    const sessionUser = await resolveSessionUser(req);
 
     if (!sessionUser) {
       return res.json({
@@ -512,6 +869,7 @@ app.get('/api/account/overview', async (req, res) => {
         email: user.email,
         institution: user.institution,
         provider: user.provider,
+        isAdmin: !!user.isAdmin,
         ...address
       },
       orders
@@ -607,7 +965,11 @@ app.put('/api/account/password', requireAuth, async (req, res) => {
 app.post('/api/account/orders', requireAuth, async (req, res) => {
   try {
     const { items } = req.body || {};
-    const order = await createOrderByUserId(req.user.id, items);
+    const order = await createOrderRecord({
+      userId: req.user.id,
+      status: 'Processing',
+      items
+    });
     return res.status(201).json({ order });
   } catch (error) {
     const msg = error && error.message ? error.message : 'Failed to create order.';
@@ -618,16 +980,32 @@ app.post('/api/account/orders', requireAuth, async (req, res) => {
   }
 });
 
-app.use(express.static(path.join(__dirname)));
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+app.use(express.static(path.join(__dirname), {
+  extensions: ['html'],
+  index: 'index.html'
+}));
+
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
+    return res.status(404).json({ error: 'Not found.' });
+  }
+  return res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 async function startServer() {
-  await runMigrations();
+  const migrationResult = await runMigrations();
   app.listen(PORT, () => {
     console.log(`PepX server listening on http://localhost:${PORT}`);
+    console.log(
+      `Migrations: ${migrationResult.applied} applied, products seeded: ${migrationResult.seeded}, admin promoted: ${migrationResult.adminPromoted}`
+    );
+    if (!stripe) {
+      console.warn('Stripe is not configured. Set STRIPE_SECRET_KEY and STRIPE_PUBLIC_KEY to enable checkout.');
+    }
   });
 }
 
