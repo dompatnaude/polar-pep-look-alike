@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { getDb } = require('./connection');
+const { seedProducts, ensureAdminUser } = require('./seed-products');
 
 const migrationsDir = path.join(__dirname, 'migrations');
 
@@ -44,7 +45,15 @@ async function runMigrations() {
     }
   }
 
-  return { total: files.length, applied: pending.length };
+  const seedResult = await seedProducts();
+  const adminResult = await ensureAdminUser();
+
+  return {
+    total: files.length,
+    applied: pending.length,
+    seeded: seedResult.inserted,
+    adminPromoted: adminResult.promoted
+  };
 }
 
 module.exports = { runMigrations };
