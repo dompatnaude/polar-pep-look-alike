@@ -2,7 +2,7 @@
   "name": "polar-pep-look-alike",
   "version": "1.0.0",
   "private": true,
-  "description": "PepX Research ecommerce storefront with auth, Stripe checkout, and admin dashboard",
+  "description": "PepX Research storefront with backend auth",
   "main": "server.js",
   "scripts": {
     "migrate": "node scripts/migrate.js",
@@ -17,7 +17,6 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
-    "stripe": "^17.7.0"
+    "sqlite3": "^5.1.7"
   }
 }
