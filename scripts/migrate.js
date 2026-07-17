@@ -2,9 +2,7 @@ const { runMigrations } = require('../db/migrate');
 
 runMigrations()
   .then((result) => {
-    console.log(
-      `Migrations complete. Total: ${result.total}, Applied: ${result.applied}, Products seeded: ${result.seeded}, Admin promoted: ${result.adminPromoted}`
-    );
+    console.log(`Migrations complete. Total: ${result.total}, Applied: ${result.applied}`);
     process.exit(0);
   })
   .catch((error) => {
