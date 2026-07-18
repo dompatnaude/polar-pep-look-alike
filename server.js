@@ -1,5 +1,6 @@
 const express = require('express');
 const session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const crypto = require('crypto');
@@ -11,6 +12,7 @@ const { runMigrations } = require('./db/migrate');
 require('dotenv').config();
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = Number(process.env.PORT || 3000);
 const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-session-secret-change-me';
 
@@ -265,13 +267,17 @@ async function createOrderByUserId(userId, payloadItems) {
 app.use(express.json());
 app.use(
   session({
+    store: new pgSession({
+      pool: pool,
+      tableName: 'session'
+    }),
     name: 'pepx.sid',
     secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
       sameSite: 'lax',
       maxAge: 1000 * 60 * 60 * 24 * 7
     }
