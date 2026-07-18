@@ -5,7 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const { getDb } = require('./db/connection');
+const pool = require('./db/connection');
 const { runMigrations } = require('./db/migrate');
 
 require('dotenv').config();
@@ -78,123 +78,125 @@ function withAuthQuery(pathname, authValue) {
 }
 
 async function findUserById(id) {
-  const db = await getDb();
-  const row = await db.get('SELECT * FROM users WHERE id = ?;', id);
-  return mapUserRow(row);
+  const result = await pool.query('SELECT * FROM users WHERE id = $1;', [id]);
+  return mapUserRow(result.rows[0]);
 }
 
 async function findUserByEmail(email) {
-  const db = await getDb();
   const normalized = normalizeEmail(email);
-  const row = await db.get('SELECT * FROM users WHERE email = ?;', normalized);
-  return mapUserRow(row);
+  const result = await pool.query('SELECT * FROM users WHERE email = $1;', [normalized]);
+  return mapUserRow(result.rows[0]);
 }
 
 async function saveOrUpdateUser(nextUser) {
-  const db = await getDb();
-  const existing = await db.get('SELECT id FROM users WHERE id = ?;', nextUser.id);
+  const existing = await pool.query('SELECT id FROM users WHERE id = $1;', [nextUser.id]);
 
-  if (existing) {
-    await db.run(
+  if (existing.rows[0]) {
+    await pool.query(
       `
       UPDATE users
-      SET name = ?, email = ?, institution = ?, provider = ?, password_hash = ?, google_id = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?;
+      SET name = $1, email = $2, institution = $3, provider = $4, password_hash = $5, google_id = $6, updated_at = NOW()
+      WHERE id = $7;
       `,
+      [
+        nextUser.name,
+        normalizeEmail(nextUser.email),
+        nextUser.institution,
+        nextUser.provider,
+        nextUser.passwordHash || null,
+        nextUser.googleId || null,
+        nextUser.id,
+      ]
+    );
+    return;
+  }
+
+  await pool.query(
+    `
+    INSERT INTO users (id, name, email, institution, provider, password_hash, google_id)
+    VALUES ($1, $2, $3, $4, $5, $6, $7);
+    `,
+    [
+      nextUser.id,
       nextUser.name,
       normalizeEmail(nextUser.email),
       nextUser.institution,
       nextUser.provider,
       nextUser.passwordHash || null,
       nextUser.googleId || null,
-      nextUser.id
-    );
-    return;
-  }
-
-  await db.run(
-    `
-    INSERT INTO users (id, name, email, institution, provider, password_hash, google_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?);
-    `,
-    nextUser.id,
-    nextUser.name,
-    normalizeEmail(nextUser.email),
-    nextUser.institution,
-    nextUser.provider,
-    nextUser.passwordHash || null,
-    nextUser.googleId || null
+    ]
   );
 }
 
 async function findAddressByUserId(userId) {
-  const db = await getDb();
-  const row = await db.get('SELECT * FROM user_addresses WHERE user_id = ?;', userId);
-  return mapAddressRow(row);
+  const result = await pool.query('SELECT * FROM user_addresses WHERE user_id = $1;', [userId]);
+  return mapAddressRow(result.rows[0]);
 }
 
 async function saveAddressByUserId(userId, nextAddress) {
-  const db = await getDb();
-  await db.run(
+  await pool.query(
     `
     INSERT INTO user_addresses (user_id, billing_address, shipping_address, updated_at)
-    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    VALUES ($1, $2, $3, NOW())
     ON CONFLICT(user_id) DO UPDATE SET
       billing_address = excluded.billing_address,
       shipping_address = excluded.shipping_address,
-      updated_at = CURRENT_TIMESTAMP;
+      updated_at = NOW();
     `,
-    userId,
-    String(nextAddress.billingAddress || '').trim(),
-    String(nextAddress.shippingAddress || '').trim()
+    [
+      userId,
+      String(nextAddress.billingAddress || '').trim(),
+      String(nextAddress.shippingAddress || '').trim(),
+    ]
   );
 }
 
 async function listOrdersByUserId(userId) {
-  const db = await getDb();
-  const orderRows = await db.all(
+  const orderResult = await pool.query(
     `
     SELECT id, status, total_amount, created_at
     FROM orders
-    WHERE user_id = ?
-    ORDER BY datetime(created_at) DESC;
+    WHERE user_id = $1
+    ORDER BY created_at DESC;
     `,
-    userId
+    [userId]
   );
+  const orderRows = orderResult.rows;
 
   if (!orderRows.length) return [];
 
   const orderIds = orderRows.map((row) => row.id);
-  const placeholders = orderIds.map(() => '?').join(',');
-  const itemRows = await db.all(
+  const placeholders = orderIds.map((_, i) => '$' + (i + 1)).join(',');
+  const itemResult = await pool.query(
     `
     SELECT order_id, product_id, product_name, unit_price, quantity, line_total
     FROM order_items
     WHERE order_id IN (${placeholders})
     ORDER BY id ASC;
     `,
-    ...orderIds
+    orderIds
   );
+  const itemRows = itemResult.rows;
 
   const itemsByOrderId = new Map();
-  itemRows.forEach((row) => {
+  for (const row of itemRows) {
     const existing = itemsByOrderId.get(row.order_id) || [];
     existing.push({
       productId: row.product_id,
       name: row.product_name,
       unitPrice: toMoney(row.unit_price),
       quantity: Number(row.quantity || 0),
-      lineTotal: toMoney(row.line_total)
+      lineTotal: toMoney(row.line_total),
     });
     itemsByOrderId.set(row.order_id, existing);
-  });
+  }
 
   return orderRows.map((row) => ({
     id: row.id,
     status: row.status,
     totalAmount: toMoney(row.total_amount),
     createdAt: row.created_at,
-    items: itemsByOrderId.get(row.id) || []
+    items: itemsByOrderId.get(row.id) || [],
   }));
 }
 
@@ -219,50 +221,44 @@ async function createOrderByUserId(userId, payloadItems) {
       name,
       quantity,
       unitPrice,
-      lineTotal: toMoney(quantity * unitPrice)
+      lineTotal: toMoney(quantity * unitPrice),
     };
   });
 
   const orderId = crypto.randomUUID();
   const totalAmount = toMoney(normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0));
-  const db = await getDb();
 
-  await db.exec('BEGIN;');
+  const client = await pool.connect();
   try {
-    await db.run(
-      'INSERT INTO orders (id, user_id, status, total_amount) VALUES (?, ?, ?, ?);',
-      orderId,
-      userId,
-      'Processing',
-      totalAmount
+    await client.query('BEGIN');
+    await client.query(
+      'INSERT INTO orders (id, user_id, status, total_amount) VALUES ($1, $2, $3, $4);',
+      [orderId, userId, 'Processing', totalAmount]
     );
 
     for (const item of normalizedItems) {
-      await db.run(
+      await client.query(
         `
         INSERT INTO order_items (order_id, product_id, product_name, unit_price, quantity, line_total)
-        VALUES (?, ?, ?, ?, ?, ?);
+        VALUES ($1, $2, $3, $4, $5, $6);
         `,
-        orderId,
-        item.productId,
-        item.name,
-        item.unitPrice,
-        item.quantity,
-        item.lineTotal
+        [orderId, item.productId, item.name, item.unitPrice, item.quantity, item.lineTotal]
       );
     }
 
-    await db.exec('COMMIT;');
+    await client.query('COMMIT');
   } catch (error) {
-    await db.exec('ROLLBACK;');
+    await client.query('ROLLBACK');
     throw error;
+  } finally {
+    client.release();
   }
 
   return {
     id: orderId,
     status: 'Processing',
     totalAmount,
-    items: normalizedItems
+    items: normalizedItems,
   };
 }
 
@@ -320,10 +316,10 @@ if (googleConfigured) {
           if (!email) {
             return done(new Error('Google account did not provide an email address.'));
           }
-
-          const db = await getDb();
-          const existingByGoogle = await db.get('SELECT * FROM users WHERE google_id = ?;', googleId);
-          const existingByEmail = await db.get('SELECT * FROM users WHERE email = ?;', email);
+          const googleResult = await pool.query('SELECT * FROM users WHERE google_id = $1;', [googleId]);
+          const existingByGoogle = googleResult.rows[0];
+          const emailResult = await pool.query('SELECT * FROM users WHERE email = $1;', [email]);
+          const existingByEmail = emailResult.rows[0];
           let user = mapUserRow(existingByGoogle || existingByEmail);
 
           if (!user) {

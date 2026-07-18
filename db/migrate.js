@@ -1,50 +1,65 @@
 const fs = require('fs');
 const path = require('path');
-const { getDb } = require('./connection');
+const pool = require('./connection');
 
 const migrationsDir = path.join(__dirname, 'migrations');
 
-async function ensureMigrationsTable(db) {
-  await db.exec(`
+async function ensureMigrationsTable() {
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       name TEXT PRIMARY KEY,
-      applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
 }
 
-async function getAppliedMigrationNames(db) {
-  const rows = await db.all('SELECT name FROM schema_migrations;');
-  return new Set(rows.map((row) => row.name));
+async function getAppliedMigrationNames() {
+  const result = await pool.query('SELECT name FROM schema_migrations;');
+  return new Set(result.rows.map((row) => row.name));
 }
 
 async function runMigrations() {
-  const db = await getDb();
-  await ensureMigrationsTable(db);
+  await ensureMigrationsTable();
 
   const files = fs
     .readdirSync(migrationsDir)
     .filter((name) => name.endsWith('.sql'))
     .sort();
 
-  const applied = await getAppliedMigrationNames(db);
+  const applied = await getAppliedMigrationNames();
   const pending = files.filter((name) => !applied.has(name));
+  let appliedCount = 0;
 
   for (const name of pending) {
     const sql = fs.readFileSync(path.join(migrationsDir, name), 'utf8');
-
-    await db.exec('BEGIN;');
+    const client = await pool.connect();
     try {
-      await db.exec(sql);
-      await db.run('INSERT INTO schema_migrations (name) VALUES (?);', name);
-      await db.exec('COMMIT;');
-    } catch (error) {
-      await db.exec('ROLLBACK;');
-      throw error;
+      await client.query('BEGIN');
+      await client.query(sql);
+      await client.query('INSERT INTO schema_migrations (name) VALUES ($1);', [name]);
+      await client.query('COMMIT');
+      appliedCount += 1;
+      console.log(`Applied migration: ${name}`);
+    } catch (err) {
+      await client.query('ROLLBACK');
+      console.error(`Failed migration: ${name}`);
+      throw err;
+    } finally {
+      client.release();
     }
   }
 
-  return { total: files.length, applied: pending.length };
+  return { total: files.length, applied: appliedCount };
+}
+
+if (require.main === module) {
+  runMigrations()
+    .then(() => pool.end())
+    .catch((err) => {
+      console.error(err);
+      pool.end();
+      process.exit(1);
+    });
 }
 
 module.exports = { runMigrations };
