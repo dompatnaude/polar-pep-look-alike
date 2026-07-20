@@ -8,7 +8,7 @@ a{text-decoration:none;color:inherit;}
 .theme-toggle-btn:hover{background:#f4f7ff;border-color:#c6d2ef;}
 
 body.dark-mode{background:radial-gradient(circle at 20% -10%,rgba(37,99,235,.18),transparent 35%),radial-gradient(circle at 85% 0%,rgba(59,130,246,.14),transparent 30%),#070b16;color:#dbe7ff;}
-body.dark-mode{--ui-glow:0 0 0 1px rgba(125,211,252,.45),0 0 24px rgba(59,130,246,.52),0 0 42px rgba(37,99,235,.42);}
+body.dark-mode{--ui-glow:0 0 0 1px rgba(125,211,252,.26),0 0 14px rgba(59,130,246,.28),0 0 26px rgba(37,99,235,.24);}
 body.dark-mode .notice-bar{background:#050913;color:#dbe7ff;}
 body.dark-mode .bar{background:linear-gradient(90deg,#1d4ed8,#1e3a8a);}
 body.dark-mode header{background:rgba(8,12,24,var(--header-bg-alpha,1));border-bottom:1px solid rgba(59,130,246,.32);}
@@ -126,6 +126,24 @@ body.dark-mode .pill.active{
 	border-color:#1e40af;
 }
 
+body.dark-mode .detail-tab{
+	background:#0b1222;
+	border-color:#2c3f66;
+	color:#eef4ff;
+}
+
+body.dark-mode .detail-tab:hover{
+	background:#14213f;
+	border-color:#3f5f97;
+	color:#ffffff;
+}
+
+body.dark-mode .detail-tab.active{
+	background:linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%);
+	border-color:#1e40af;
+	color:#ffffff;
+}
+
 body.dark-mode .btn,
 body.dark-mode .pill,
 body.dark-mode .policy-btn,
@@ -137,7 +155,7 @@ body.dark-mode .auth-tab,
 body.dark-mode .google-auth-btn,
 body.dark-mode .sort-select,
 body.dark-mode button{
-	box-shadow:var(--ui-glow);
+	box-shadow:none;
 }
 
 body.dark-mode .btn:hover,
@@ -151,7 +169,7 @@ body.dark-mode .auth-tab:hover,
 body.dark-mode .google-auth-btn:hover,
 body.dark-mode .sort-select:hover,
 body.dark-mode button:hover{
-	box-shadow:var(--ui-glow);
+	box-shadow:none;
 }
 
 body.dark-mode .product-card .btn,
@@ -163,13 +181,25 @@ body.dark-mode .product-card [class*="btn"]{
 
 body.dark-mode .product-card:hover{box-shadow:var(--ui-glow);}
 
-/* Keep review collage text readable on its light cards in dark mode. */
-body.dark-mode .hero-review-text{color:#1f2937;}
-
-/* Keep FAQ panel text readable since FAQ cards stay light. */
-body.dark-mode .qa{background:#fff;border-color:#eee;}
-body.dark-mode .qa .q{color:#101426;}
-body.dark-mode .qa .a{color:#6b7280;}
+/* Dark-mode surface contrast: avoid light panels with unreadable pairings. */
+body.dark-mode .hero-review-card{background:#0f172b;border-color:#223154;box-shadow:0 10px 24px rgba(0,0,0,.28);}
+body.dark-mode .hero-review-text{color:#d7e3fb;}
+body.dark-mode .hero-review-author{color:#93c5fd;}
+body.dark-mode .qa{background:#0f172b;border-color:#223154;}
+body.dark-mode .qa .q{color:#eef4ff;}
+body.dark-mode .qa .a{color:#b9c8e8;}
+body.dark-mode .review-form input,
+body.dark-mode .review-form select,
+body.dark-mode .review-form textarea,
+body.dark-mode .auth-form input,
+body.dark-mode .auth-form select,
+body.dark-mode .modal select{background:#0b1222;color:#eef4ff;border-color:#2c3f66;}
+body.dark-mode .review-form input::placeholder,
+body.dark-mode .review-form textarea::placeholder,
+body.dark-mode .auth-form input::placeholder{color:#8fa4ca;}
+body.dark-mode .auth-divider span{background:#0f172b;color:#b9c8e8;}
+body.dark-mode .signed-box{background:#0b1222;border-color:#2a3a5f;}
+body.dark-mode .product-detail-badge{background:#0b1222;color:#eef4ff;border:1px solid #2c3f66;}
 
 /* Keep account page contrast consistent in dark mode. */
 body.dark-mode .account-order-card{background:#0b1222;border-color:#2a3a5f;}
