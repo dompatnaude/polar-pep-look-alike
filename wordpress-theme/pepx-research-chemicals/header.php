@@ -17,10 +17,6 @@
       <a href="<?php echo esc_url(home_url('/#contact')); ?>">Contact</a>
     </nav>
     <div class="icons">
-      <div class="search-wrap" id="searchWrap">
-        <button type="button" id="searchBtn" class="icon-btn" title="Search" aria-label="Search">🔍</button>
-        <input type="text" id="productSearch" placeholder="Search products" aria-label="Search products">
-      </div>
       <a href="<?php echo esc_url(home_url('/checkout')); ?>" class="icon-btn cart-btn" id="cartBtn" title="Cart" aria-label="Cart">
         <span class="cart-count" id="cartCount" style="display:none">0</span>
       </a>

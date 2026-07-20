@@ -4,8 +4,8 @@ body{color:var(--dark);background:var(--bg);line-height:1.5;}
 button,input,select,textarea{font-family:inherit;}
 a{text-decoration:none;color:inherit;}
 .container{max-width:1240px;margin:0 auto;padding:0 24px;}
-.theme-toggle-btn{border:1px solid #d7dbe8;border-radius:999px;padding:7px 12px;background:#fff;color:#1f2937;font-size:12px;font-weight:800;letter-spacing:.04em;min-width:72px;}
-.theme-toggle-btn:hover{background:#f4f7ff;border-color:#c6d2ef;}
+.theme-toggle-btn{border:none;border-radius:0;padding:0;background:transparent;color:#1f2937;font-size:12px;font-weight:800;letter-spacing:.04em;min-width:auto;box-shadow:none;}
+.theme-toggle-btn:hover{background:transparent;border-color:transparent;box-shadow:none;}
 
 body.dark-mode{background:radial-gradient(circle at 20% -10%,rgba(37,99,235,.18),transparent 35%),radial-gradient(circle at 85% 0%,rgba(59,130,246,.14),transparent 30%),#070b16;color:#dbe7ff;}
 body.dark-mode{--ui-glow:0 0 0 1px rgba(125,211,252,.26),0 0 14px rgba(59,130,246,.28),0 0 26px rgba(37,99,235,.24);}
@@ -85,7 +85,7 @@ body.dark-mode .drawer-head,body.dark-mode .drawer-foot,body.dark-mode .cart-ite
 body.dark-mode .auth-modal-backdrop{background:rgba(0,0,0,.7);}
 body.dark-mode footer{background:#060b16;}
 body.dark-mode .copy,body.dark-mode .footer-small,body.dark-mode .footer-disclaimer p,body.dark-mode .policy-links a{color:#b9c8e8;}
-body.dark-mode .theme-toggle-btn{background:#0f1b34;border-color:#2f4f8d;color:#dbe7ff;}
+body.dark-mode .theme-toggle-btn{background:transparent;border-color:transparent;color:#dbe7ff;box-shadow:none;}
 
 body.dark-mode .btn.ghost,
 body.dark-mode .pill,
@@ -551,8 +551,16 @@ footer .logo .logo-sub{transform:none;}
 	nav.menu a,.menu-link{padding:10px 12px;border-radius:10px;}
 	nav.menu a:hover,.menu-link:hover{background:#f5f7ff;}
 	.menu-item{display:block;}
-	.menu-dropdown{position:static;opacity:1;pointer-events:auto;transform:none;border:none;box-shadow:none;padding:4px 0 0;min-width:0;display:none;}
-	.menu-item.open .menu-dropdown{display:block;}
+	.menu-caret{display:none;}
+	.menu-dropdown{display:none !important;}
+}
+
+@media(max-width:900px){
+	body.dark-mode nav.menu{background:#0f172b;border-color:#223154;box-shadow:0 16px 42px rgba(0,0,0,.45);}
+	body.dark-mode nav.menu a,
+	body.dark-mode .menu-link{color:#eef4ff;}
+	body.dark-mode nav.menu a:hover,
+	body.dark-mode .menu-link:hover{background:#15213f;color:#ffffff;}
 }
 
 @media(max-width:900px){
