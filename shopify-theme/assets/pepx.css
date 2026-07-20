@@ -12,9 +12,16 @@
 
 body {
   margin: 0;
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: 'Sohne', 'Söhne', 'Neue Haas Grotesk Text Pro', 'Neue Haas Grotesk', 'Helvetica Now Text', 'Helvetica Now', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   color: var(--pepx-ink);
   background: linear-gradient(180deg, #f9fbff 0%, var(--pepx-bg) 100%);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 .pepx-container {

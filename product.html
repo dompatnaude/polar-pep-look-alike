@@ -58,7 +58,11 @@
             </div>
             <label class="product-detail-qty" for="productDetailQty">
               <span>Quantity</span>
-              <input type="number" id="productDetailQty" min="1" value="1">
+              <div class="qty-stepper" role="group" aria-label="Adjust quantity">
+                <button type="button" class="qty-stepper-btn" data-qty-target="productDetailQty" data-qty-delta="-1" aria-label="Decrease quantity">-</button>
+                <input type="number" id="productDetailQty" min="1" value="1">
+                <button type="button" class="qty-stepper-btn" data-qty-target="productDetailQty" data-qty-delta="1" aria-label="Increase quantity">+</button>
+              </div>
             </label>
           </div>
           <div class="product-detail-actions">

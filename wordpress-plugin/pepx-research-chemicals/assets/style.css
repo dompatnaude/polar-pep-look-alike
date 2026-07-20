@@ -1,6 +1,7 @@
 :root{--blue:#2f43e0;--dark:#101426;--muted:#6b7280;--bg:#ffffff;--soft:#f4f6fb;}
-.pepx-storefront *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+.pepx-storefront *{margin:0;padding:0;box-sizing:border-box;font-family:'Sohne','Söhne','Neue Haas Grotesk Text Pro','Neue Haas Grotesk','Helvetica Now Text','Helvetica Now','Helvetica Neue',Helvetica,Arial,sans-serif;}
 .pepx-storefront body{color:var(--dark);background:var(--bg);line-height:1.5;}
+.pepx-storefront button,.pepx-storefront input,.pepx-storefront select,.pepx-storefront textarea{font-family:inherit;}
 .pepx-storefront a{text-decoration:none;color:inherit;}
 .pepx-storefront .container{max-width:1240px;margin:0 auto;padding:0 24px;}
 .pepx-storefront .bar{background:var(--blue);color:#fff;font-size:14px;font-weight:600;overflow:hidden;white-space:nowrap;padding:10px 0;}
@@ -11,7 +12,7 @@
 .pepx-storefront .nav{display:flex;align-items:center;justify-content:space-between;padding:18px 0;}
 .pepx-storefront .logo{font-weight:800;letter-spacing:-0.5px;display:inline-flex;align-items:flex-start;}
 .pepx-storefront .logo-mark{display:flex;flex-direction:column;align-items:flex-start;gap:2px;line-height:0.9;position:relative;overflow:hidden;padding-right:8px;}
-.pepx-storefront .logo-mark::before{content:"";position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent);animation:logoShine 2.8s ease-in-out infinite;}
+.pepx-storefront .logo-mark::before{display:none;}
 .pepx-storefront .logo-word{display:inline-flex;align-items:baseline;gap:2px;}
 .pepx-storefront .logo-pep{color:#9ca3af;font-size:30px;font-weight:700;text-transform:lowercase;}
 .pepx-storefront .logo-x{color:var(--blue);font-size:48px;font-weight:900;line-height:0.8;display:inline-block;animation:logoPulse 2.2s ease-in-out infinite;}

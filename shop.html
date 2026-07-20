@@ -36,35 +36,41 @@
       <h1>SHOP</h1>
       <p>High quality peptides for research purposes only</p>
     </section>
-    <section class="shop-hero shop-hero-modern">
-      <div class="filter-bar">
-        <div class="filter-group">
-          <span class="filter-label">Category</span>
-          <div class="pill-list">
-            <button type="button" class="pill active" data-filter="all">All</button>
-            <button type="button" class="pill" data-filter="Recovery">Recovery</button>
-            <button type="button" class="pill" data-filter="Metabolic">Metabolic</button>
-            <button type="button" class="pill" data-filter="Repair">Repair</button>
-            <button type="button" class="pill" data-filter="Growth">Growth</button>
-            <button type="button" class="pill" data-filter="Cellular">Cellular</button>
-            <button type="button" class="pill" data-filter="Neuro">Neuro</button>
-          </div>
-        </div>
-        <div class="filter-group sort-group">
-          <label for="sortSelect">Sort by</label>
-          <select id="sortSelect" class="sort-select">
-            <option value="default">Recommended</option>
-            <option value="nameAsc">A-Z</option>
-            <option value="nameDesc">Z-A</option>
-            <option value="priceAsc">Price: Low to High</option>
-            <option value="priceDesc">Price: High to Low</option>
-          </select>
-        </div>
-      </div>
-    </section>
-
     <section class="section section-shop">
-      <div class="grid grid-shop" id="productGrid"></div>
+        <div class="shop-layout">
+          <aside class="shop-categories" aria-label="Shop categories">
+            <h3>Categories</h3>
+            <div class="pill-list pill-list-vertical">
+              <button type="button" class="pill active" data-filter="all">All</button>
+              <button type="button" class="pill" data-filter="Recovery">Recovery</button>
+              <button type="button" class="pill" data-filter="Metabolic">Metabolic</button>
+              <button type="button" class="pill" data-filter="Repair">Repair</button>
+              <button type="button" class="pill" data-filter="Growth">Growth</button>
+              <button type="button" class="pill" data-filter="Cellular">Cellular</button>
+              <button type="button" class="pill" data-filter="Neuro">Neuro</button>
+            </div>
+          </aside>
+
+          <div class="shop-results">
+            <div class="shop-tools">
+              <div class="shop-search-panel">
+                <label for="shopProductSearch">Search for products</label>
+                <input type="text" id="shopProductSearch" class="shop-search-input" placeholder="Search by product name, category, or tag">
+              </div>
+              <div class="filter-group sort-group">
+                <label for="sortSelect">Sort by</label>
+                <select id="sortSelect" class="sort-select">
+                  <option value="default">Recommended</option>
+                  <option value="nameAsc">A-Z</option>
+                  <option value="nameDesc">Z-A</option>
+                  <option value="priceAsc">Price: Low to High</option>
+                  <option value="priceDesc">Price: High to Low</option>
+                </select>
+            </div>
+            </div>
+            <div class="grid grid-shop" id="productGrid"></div>
+          </div>
+      </div>
     </section>
   </main>
 
@@ -85,7 +91,11 @@
           <p class="product-modal-description">Research-grade reagent for laboratory use only. Handle with appropriate controls and safety procedures.</p>
           <div class="product-modal-qty">
             <label for="productModalQty">Quantity</label>
-            <input type="number" id="productModalQty" min="1" value="1">
+            <div class="qty-stepper" role="group" aria-label="Adjust quantity">
+              <button type="button" class="qty-stepper-btn" data-qty-target="productModalQty" data-qty-delta="-1" aria-label="Decrease quantity">-</button>
+              <input type="number" id="productModalQty" min="1" value="1">
+              <button type="button" class="qty-stepper-btn" data-qty-target="productModalQty" data-qty-delta="1" aria-label="Increase quantity">+</button>
+            </div>
           </div>
           <button class="btn primary" id="addProductModalBtn" type="button">Add to Cart</button>
         </div>
