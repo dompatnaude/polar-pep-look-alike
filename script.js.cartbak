@@ -229,7 +229,7 @@ function initHeaderFogOnScroll(){
 }
 
 function getProductById(id){
-  return PRODUCTS.find(function(item){ return String(item.id) === String(id); }) || null;
+  return PRODUCTS.find(function(item){ return item.id === id; }) || null;
 }
 
 function getProductUrl(id){
@@ -423,13 +423,16 @@ function openProductModal(id){
 }
 
 function loadCart(){
-  // Backend (/api/cart) is the single source of truth; do not hydrate from localStorage.
-  cart = {};
-  try { window.localStorage.removeItem(STORAGE_KEY); } catch (err) {}
+  try {
+    var saved = window.localStorage.getItem(STORAGE_KEY);
+    if(saved){ cart = JSON.parse(saved) || {}; }
+  } catch (err) {
+    cart = {};
+  }
 }
 
 function saveCart(){
-  // No-op: cart is persisted server-side via /api/cart.
+  try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cart)); } catch (err) {}
 }
 
 function shuffleProducts(products){
@@ -727,7 +730,9 @@ function renderProductDetailPage(){
   function addDetailProductToCart(){
     var qty = qtyEl ? Math.max(0, parseInt(qtyEl.value, 10) || 0) : 0;
     if(qty < 1) return false;
-    authApi('/api/cart',{method:'POST',body:JSON.stringify({product_id:product.id,quantity:qty})}).then(function(){return loadBackendCart();}).catch(function(err){showToast(err.message||'Could not add to cart');});
+    cart[product.id] = (cart[product.id] || 0) + qty;
+    renderCart();
+    saveCart();
     var productName = product.name;
     if(product.selectedDose){
       productName += ' (' + product.selectedDose + ')';
@@ -737,13 +742,13 @@ function renderProductDetailPage(){
   }
 
   if(addBtn){
-    addBtn.onclick = function(){
+    addBtn.addEventListener('click', function(){
       addDetailProductToCart();
-    };
+    });
   }
 
   if(checkoutBtn){
-    checkoutBtn.onclick = function(){
+    checkoutBtn.addEventListener('click', function(){
       if(addDetailProductToCart()){
         /* transferGuestCartCheckoutGate: require login before checkout */
         if(!currentAuthSession){
@@ -753,7 +758,7 @@ function renderProductDetailPage(){
         }
         window.location.href = 'checkout.html';
       }
-    };
+    });
   }
 
   renderProductRail('upsellGrid', getUpsellProducts(product, 3));
@@ -764,7 +769,7 @@ function addSelectedProductToCart(){
   if(!selectedProductId) return;
   var qty = parseInt(document.getElementById('productModalQty').value, 10) || 0;
   if(qty < 1) return;
-  authApi('/api/cart',{method:'POST',body:JSON.stringify({product_id:selectedProductId,quantity:qty})}).then(function(){return loadBackendCart();}).catch(function(err){showToast(err.message||'Could not add to cart');});
+  cart[selectedProductId] = (cart[selectedProductId] || 0) + qty;
   showToast('Added ' + qty + ' item(s) to cart');
   renderCart();
   closeProductModal();
