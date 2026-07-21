@@ -100,7 +100,9 @@ function createAdminRouter(requireAuth) {
       }
       const order = orderRes.rows[0];
       const itemsRes = await pool.query(
-        'SELECT id, product_id, name, price, quantity FROM order_items WHERE order_id = $1 ORDER BY id ASC',
+        "SELECT id, product_id, variant_id, " +
+        "CASE WHEN variant_name IS NOT NULL AND variant_name <> '' THEN name || ' (' || variant_name || ')' ELSE name END AS name, " +
+        'price, quantity FROM order_items WHERE order_id = $1 ORDER BY id ASC',
         [orderId]
       );
       const customer = {

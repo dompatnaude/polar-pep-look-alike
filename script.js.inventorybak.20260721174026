@@ -232,73 +232,6 @@ function getProductById(id){
   return PRODUCTS.find(function(item){ return String(item.id) === String(id); }) || null;
 }
 
-function getProductVariants(product){
-  if(!product || !Array.isArray(product.variants)) return [];
-  return product.variants.filter(function(v){ return v && Number.isFinite(Number(v.price)); });
-}
-
-function getDefaultVariant(product){
-  var variants = getProductVariants(product);
-  if(!variants.length) return null;
-  var inStock = variants.find(function(v){ return Number(v.stock_quantity || 0) > 0; });
-  return inStock || variants[0] || null;
-}
-
-function getSelectedVariant(product){
-  if(!product) return null;
-  var variants = getProductVariants(product);
-  if(!variants.length) return null;
-  var selectedId = Number(product.selected_variant_id);
-  var selected = variants.find(function(v){ return Number(v.id) === selectedId; });
-  if(selected) return selected;
-  var fallback = getDefaultVariant(product);
-  if(fallback) product.selected_variant_id = Number(fallback.id);
-  return fallback;
-}
-
-function getProductStockQuantity(product, variant){
-  if(variant){
-    return Math.max(0, Number(variant.stock_quantity || 0));
-  }
-  var variants = getProductVariants(product);
-  if(variants.length){
-    return variants.reduce(function(sum, v){ return sum + Math.max(0, Number(v.stock_quantity || 0)); }, 0);
-  }
-  return Math.max(0, Number(product && product.stock_quantity || 0));
-}
-
-function getProductStockStatus(product, variant){
-  if(variant){
-    var variantQty = getProductStockQuantity(product, variant);
-    if(variantQty <= 0) return 'sold_out';
-    if(variantQty <= 5) return 'low_stock';
-    return 'in_stock';
-  }
-  if(product && product.stock_status && !getProductVariants(product).length){ return product.stock_status; }
-  var qty = getProductStockQuantity(product, null);
-  if(qty <= 0) return 'sold_out';
-  if(qty <= 5) return 'low_stock';
-  return 'in_stock';
-}
-
-function getProductStockMessage(product, variant){
-  if(variant){
-    var variantQty = getProductStockQuantity(product, variant);
-    if(variantQty <= 0) return 'SOLD OUT';
-    if(variantQty <= 5) return 'Only ' + variantQty + ' remaining';
-    return '';
-  }
-  if(product && product.stock_message && !getProductVariants(product).length){ return product.stock_message; }
-  var qty = getProductStockQuantity(product, null);
-  if(qty <= 0) return 'SOLD OUT';
-  if(qty <= 5) return 'Only ' + qty + ' remaining';
-  return '';
-}
-
-function isProductSoldOut(product, variant){
-  return getProductStockStatus(product, variant) === 'sold_out';
-}
-
 function getProductUrl(id){
   return 'product.html?product=' + encodeURIComponent(id);
 }
@@ -423,31 +356,10 @@ function renderProductCards(products, options){
   var viewLabel = settings.viewLabel || 'View Details';
   return products.map(function(p){
     var image = getProductImage(p);
-    var variants = getProductVariants(p);
-    var displayPrice = Number(p.price || 0);
-    var displayPriceLabel = '$' + displayPrice.toFixed(2);
-    if(variants.length){
-      var minPrice = variants.reduce(function(min, v){
-        var price = Number(v.price || 0);
-        return price < min ? price : min;
-      }, Number(variants[0].price || 0));
-      var maxPrice = variants.reduce(function(max, v){
-        var price = Number(v.price || 0);
-        return price > max ? price : max;
-      }, Number(variants[0].price || 0));
-      displayPriceLabel = minPrice === maxPrice
-        ? ('$' + minPrice.toFixed(2))
-        : ('$' + minPrice.toFixed(2) + '-$' + maxPrice.toFixed(2));
-    }
-    var stockStatus = getProductStockStatus(p);
-    var stockMessage = getProductStockMessage(p);
-    var stockClass = stockStatus === 'sold_out' ? 'stock-note sold-out' : (stockStatus === 'low_stock' ? 'stock-note low-stock' : 'stock-note');
-    var stockMarkup = stockMessage ? ('<p class="' + stockClass + '">' + escapeHtml(stockMessage) + '</p>') : '<p class="stock-note in-stock">In stock</p>';
     return '<div class="product-card" data-id="'+p.id+'" role="button" tabindex="0">'+
       '<div class="product-card-media"><img src="'+image+'" alt="'+p.name+' product image" loading="lazy"></div><div class="product-card-body">'+
-      '<div class="product-card-meta"><span class="price">'+displayPriceLabel+'</span></div>'+
+      '<div class="product-card-meta"><span class="label">'+p.category+'</span><span class="price">$'+p.price.toFixed(2)+'</span></div>'+
       '<h3>'+getProductDisplayName(p)+'</h3>'+
-      stockMarkup+
       '<div class="product-card-actions"><button class="btn ghost quick-btn" type="button" data-id="'+p.id+'">'+viewLabel+'</button></div>'+
       '</div></div>';
   }).join('');
@@ -486,7 +398,6 @@ function openProductModal(id){
   var modalPriceEl = document.getElementById('productModalPrice');
   var modalAddBtn = document.getElementById('addProductModalBtn');
   var modalImage = modal.querySelector('.product-modal-image');
-  var selectedVariant = getSelectedVariant(product);
   if(modalImage){
     modalImage.style.backgroundImage = 'url("' + getProductImage(product) + '")';
     modalImage.style.backgroundSize = 'cover';
@@ -494,71 +405,12 @@ function openProductModal(id){
   }
   var descEl = modal.querySelector('.product-modal-description');
   if(descEl) descEl.textContent = product.description;
-
-  var variantWrap = modal.querySelector('.product-modal-variant-wrap');
-  if(!variantWrap){
-    variantWrap = document.createElement('div');
-    variantWrap.className = 'product-modal-variant-wrap';
-    variantWrap.style.margin = '0 0 12px';
-    if(descEl && descEl.parentNode){
-      descEl.parentNode.insertBefore(variantWrap, descEl.nextSibling);
-    }
-  }
-
-  var variants = getProductVariants(product);
-  if(variants.length){
-    variantWrap.innerHTML = '<div style="font-size:13px;font-weight:700;margin-bottom:6px;">Dosage</div><div class="dose-options" id="productModalDoseOptions"></div>';
-    var optionsWrap = variantWrap.querySelector('#productModalDoseOptions');
-    variants.forEach(function(v){
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'dose-option' + (selectedVariant && Number(selectedVariant.id) === Number(v.id) ? ' active' : '');
-      btn.textContent = v.name;
-      btn.addEventListener('click', function(){
-        product.selected_variant_id = Number(v.id);
-        Array.prototype.forEach.call(optionsWrap.querySelectorAll('.dose-option'), function(b){ b.classList.remove('active'); });
-        btn.classList.add('active');
-        updateModalPrice();
-      });
-      optionsWrap.appendChild(btn);
-    });
-  } else {
-    variantWrap.innerHTML = '';
-  }
-
-  var stockNoteEl = modal.querySelector('.product-stock-note');
-  if(!stockNoteEl){
-    stockNoteEl = document.createElement('p');
-    stockNoteEl.className = 'product-stock-note';
-    if(descEl && descEl.parentNode){
-      descEl.parentNode.insertBefore(stockNoteEl, descEl.nextSibling);
-    }
-  }
-
   var qty = document.getElementById('productModalQty');
   function updateModalPrice(){
     if(!qty || !modalPriceEl) return;
-    var selected = getSelectedVariant(product);
-    var unitPrice = selected ? Number(selected.price || 0) : Number(product.price || 0);
-    var stockQty = getProductStockQuantity(product, selected);
-    var stockStatus = getProductStockStatus(product, selected);
-    var stockMessage = getProductStockMessage(product, selected);
-
-    if(stockNoteEl){
-      stockNoteEl.textContent = stockMessage || 'In stock';
-      stockNoteEl.classList.toggle('sold-out', stockStatus === 'sold_out');
-      stockNoteEl.classList.toggle('low-stock', stockStatus === 'low_stock');
-    }
-
-    var maxQty = Math.max(0, stockQty);
-    if(maxQty > 0){
-      qty.max = String(maxQty);
-      if(Number(qty.value) > maxQty){ qty.value = String(maxQty); }
-    }
-    var pricing = getQuantityPricing(unitPrice, qty.value);
+    var pricing = getQuantityPricing(product.price, qty.value);
     setDualPriceMarkup(modalPriceEl, pricing);
-    var canAdd = pricing.qty >= 1 && !isProductSoldOut(product, selected) && pricing.qty <= maxQty;
-    modalAddBtn.disabled = !canAdd;
+    toggleAddToCartOption(modalAddBtn, pricing.qty);
   }
   if(qty){
     qty.value = '1';
@@ -784,16 +636,6 @@ function renderProductDetailPage(){
   var qtyEl = document.getElementById('productDetailQty');
   var addBtn = document.getElementById('productDetailAddBtn');
   var checkoutBtn = document.getElementById('productDetailCheckoutBtn');
-  var selectedVariant = getSelectedVariant(product);
-
-  var stockInfoEl = document.getElementById('productDetailStockMessage');
-  if(!stockInfoEl && summaryEl && summaryEl.parentNode){
-    stockInfoEl = document.createElement('p');
-    stockInfoEl.id = 'productDetailStockMessage';
-    stockInfoEl.className = 'product-stock-note';
-    summaryEl.parentNode.insertBefore(stockInfoEl, summaryEl.nextSibling);
-  }
-
   var doseOptionsContainer = document.getElementById('productDetailDoseOptions');
   var tabs = page.querySelectorAll('[data-detail-tab]');
   var detailMedia = page.querySelector('.product-detail-media');
@@ -804,34 +646,28 @@ function renderProductDetailPage(){
 
   if(doseOptionsContainer){
     doseOptionsContainer.innerHTML = '';
-    var variants = getProductVariants(product);
-
-    if(variants.length > 0){
-      variants.forEach(function(variant, idx){
+    
+    if(product.dosages && product.dosages.length > 0){
+      var sortedDosages = product.dosages.slice().sort(function(a, b){
+        var numA = parseInt(a.match(/\d+/)[0]);
+        var numB = parseInt(b.match(/\d+/)[0]);
+        return numA - numB;
+      });
+      
+      sortedDosages.forEach(function(dose, idx){
         var btn = document.createElement('button');
         btn.type = 'button';
-        var isActive = selectedVariant
-          ? Number(selectedVariant.id) === Number(variant.id)
-          : idx === 0;
-        btn.className = 'dose-option' + (isActive ? ' active' : '');
-        btn.textContent = variant.name;
-        btn.dataset.value = variant.name;
+        btn.className = 'dose-option' + (idx === 0 ? ' active' : '');
+        btn.textContent = dose;
+        btn.dataset.value = dose;
         btn.addEventListener('click', function(){
           doseOptionsContainer.querySelectorAll('.dose-option').forEach(function(b){ b.classList.remove('active'); });
           btn.classList.add('active');
-          product.selected_variant_id = Number(variant.id);
-          selectedVariant = getSelectedVariant(product);
-          updateDetailPrice();
+          product.selectedDose = dose;
         });
         doseOptionsContainer.appendChild(btn);
       });
-      if(selectedVariant){
-        product.selectedDose = selectedVariant.name;
-      }
-      if(!selectedVariant && variants[0]){
-        product.selected_variant_id = Number(variants[0].id);
-        selectedVariant = getSelectedVariant(product);
-      }
+      product.selectedDose = sortedDosages[0];
     } else {
       product.selectedDose = '';
     }
@@ -848,13 +684,6 @@ function renderProductDetailPage(){
   if(tagEl) tagEl.textContent = product.tag;
   if(breadcrumbEl) breadcrumbEl.textContent = displayName;
   if(summaryEl) summaryEl.textContent = product.description;
-  if(stockInfoEl){
-    var stockStatus = getProductStockStatus(product, selectedVariant);
-    var stockMessage = getProductStockMessage(product, selectedVariant);
-    stockInfoEl.textContent = stockMessage || 'In stock';
-    stockInfoEl.classList.toggle('sold-out', stockStatus === 'sold_out');
-    stockInfoEl.classList.toggle('low-stock', stockStatus === 'low_stock');
-  }
   renderSavingsRows(product);
   if(detailMedia){
     detailMedia.classList.add('has-product-image');
@@ -865,30 +694,9 @@ function renderProductDetailPage(){
 
   function updateDetailPrice(){
     if(!priceEl) return;
-    selectedVariant = getSelectedVariant(product);
-    var unitPrice = selectedVariant ? Number(selectedVariant.price || 0) : Number(product.price || 0);
-    var stockQty = getProductStockQuantity(product, selectedVariant);
-    var stockStatus = getProductStockStatus(product, selectedVariant);
-    var stockMessage = getProductStockMessage(product, selectedVariant);
-
-    if(stockInfoEl){
-      stockInfoEl.textContent = stockMessage || 'In stock';
-      stockInfoEl.classList.toggle('sold-out', stockStatus === 'sold_out');
-      stockInfoEl.classList.toggle('low-stock', stockStatus === 'low_stock');
-    }
-
-    if(qtyEl){
-      if(stockQty > 0){
-        qtyEl.max = String(stockQty);
-        if(Number(qtyEl.value) > stockQty){ qtyEl.value = String(stockQty); }
-      }
-    }
-    var pricing = getQuantityPricing(unitPrice, qtyEl ? qtyEl.value : 1);
+    var pricing = getQuantityPricing(product.price, qtyEl ? qtyEl.value : 1);
     setDualPriceMarkup(priceEl, pricing);
-    renderSavingsRows({ price: unitPrice });
-    var canAdd = pricing.qty >= 1 && !isProductSoldOut(product, selectedVariant) && pricing.qty <= Math.max(0, stockQty);
-    if(addBtn){ addBtn.disabled = !canAdd; }
-    if(checkoutBtn){ checkoutBtn.disabled = isProductSoldOut(product, selectedVariant); }
+    toggleAddToCartOption(addBtn, pricing.qty);
   }
 
   if(qtyEl){
@@ -918,38 +726,13 @@ function renderProductDetailPage(){
 
   function addDetailProductToCart(){
     var qty = qtyEl ? Math.max(0, parseInt(qtyEl.value, 10) || 0) : 0;
-    selectedVariant = getSelectedVariant(product);
-    var stockQty = getProductStockQuantity(product, selectedVariant);
     if(qty < 1) return false;
-    if(getProductVariants(product).length && !selectedVariant){
-      showToast('Please select a dosage option.');
-      return false;
+    authApi('/api/cart',{method:'POST',body:JSON.stringify({product_id:product.id,quantity:qty})}).then(function(){return loadBackendCart();}).catch(function(err){showToast(err.message||'Could not add to cart');});
+    var productName = product.name;
+    if(product.selectedDose){
+      productName += ' (' + product.selectedDose + ')';
     }
-    if(isProductSoldOut(product, selectedVariant)){
-      showToast('SOLD OUT');
-      return false;
-    }
-    if(qty > stockQty){
-      showToast('Only ' + stockQty + ' remaining in stock.');
-      return false;
-    }
-    authApi('/api/cart',{
-      method:'POST',
-      body:JSON.stringify({
-        product_id:product.id,
-        variant_id:selectedVariant ? selectedVariant.id : null,
-        quantity:qty
-      })
-    })
-      .then(function(){
-        var productName = product.name;
-        if(selectedVariant){
-          productName += ' (' + selectedVariant.name + ')';
-        }
-        showToast(qty + ' × ' + productName + ' added to cart');
-        return loadBackendCart();
-      })
-      .catch(function(err){ showToast(err.message||'Could not add to cart'); });
+    showToast(qty + ' × ' + productName + ' added to cart');
     return true;
   }
 
@@ -979,40 +762,13 @@ function renderProductDetailPage(){
 
 function addSelectedProductToCart(){
   if(!selectedProductId) return;
-  var product = getProductById(selectedProductId);
-  if(!product) return;
-  var selectedVariant = getSelectedVariant(product);
-  var stockQty = getProductStockQuantity(product, selectedVariant);
   var qty = parseInt(document.getElementById('productModalQty').value, 10) || 0;
   if(qty < 1) return;
-  if(getProductVariants(product).length && !selectedVariant){
-    showToast('Please select a dosage option.');
-    return;
-  }
-  if(isProductSoldOut(product, selectedVariant)){
-    showToast('SOLD OUT');
-    return;
-  }
-  if(qty > stockQty){
-    showToast('Only ' + stockQty + ' remaining in stock.');
-    return;
-  }
-  authApi('/api/cart',{
-    method:'POST',
-    body:JSON.stringify({
-      product_id:selectedProductId,
-      variant_id:selectedVariant ? selectedVariant.id : null,
-      quantity:qty
-    })
-  })
-    .then(function(){
-      var label = selectedVariant ? (' (' + selectedVariant.name + ')') : '';
-      showToast('Added ' + qty + ' item(s) to cart' + label);
-      closeProductModal();
-      saveCart();
-      return loadBackendCart();
-    })
-    .catch(function(err){ showToast(err.message||'Could not add to cart'); });
+  authApi('/api/cart',{method:'POST',body:JSON.stringify({product_id:selectedProductId,quantity:qty})}).then(function(){return loadBackendCart();}).catch(function(err){showToast(err.message||'Could not add to cart');});
+  showToast('Added ' + qty + ' item(s) to cart');
+  renderCart();
+  closeProductModal();
+  saveCart();
 }
 
 // ---------- Cart ----------
@@ -1020,18 +776,16 @@ function addSelectedProductToCart(){
 function loadBackendCart(){
   return authApi("/api/cart", { method: "GET" }).then(function(data){
     cartData = { items: (data && data.items) ? data.items : [], total: (data && data.total) ? data.total : 0 };
-    // Rebuild local maps keyed by cart-item id to support multiple variants per product.
+    // Rebuild the legacy cart map { productId: quantity } and item-id index used by renderCart/handlers.
     cart = {};
     cartItemIndex = {};
     cartData.items.forEach(function(it){
-      cart[it.id] = it.quantity;
-      cartItemIndex[it.id] = it.id;
+      cart[it.product_id] = it.quantity;
+      cartItemIndex[it.product_id] = it.id;
       // Ensure the product exists in PRODUCTS so renderCart can resolve name/price/image.
-      var exists = PRODUCTS.find(function(x){ return Number(x.id) === Number(it.product_id); });
+      var exists = PRODUCTS.find(function(x){ return x.id === it.product_id; });
       if(!exists){
-        PRODUCTS.push({ id: it.product_id, name: it.name, price: Number(it.price), image: it.image_url, category: it.category, stock_quantity: Number(it.stock_quantity || 0), variants: [] });
-      } else {
-        exists.stock_quantity = Number(it.stock_quantity || exists.stock_quantity || 0);
+        PRODUCTS.push({ id: it.product_id, name: it.name, price: Number(it.price), image: it.image_url, category: it.category });
       }
     });
     renderCart();
@@ -1053,8 +807,9 @@ function addToCart(id){
   }).catch(function(err){ showToast(err.message || 'Could not add to cart'); });
 }
 function changeQty(id, delta){
-  var itemId = cartItemIndex[id] || id;
-  var current = cart[itemId] || 0;
+  var itemId = cartItemIndex[id];
+  if(!itemId) return;
+  var current = cart[id] || 0;
   var next = current + delta;
   if(next <= 0){ return removeItem(id); }
   return authApi('/api/cart/item/' + itemId, { method: 'PUT', body: JSON.stringify({ quantity: next }) }).then(function(){
@@ -1062,7 +817,7 @@ function changeQty(id, delta){
   }).catch(function(err){ showToast(err.message || 'Could not update cart'); });
 }
 function removeItem(id){
-  var itemId = cartItemIndex[id] || id;
+  var itemId = cartItemIndex[id];
   if(!itemId){ delete cart[id]; renderCart(); return; }
   return authApi('/api/cart/item/' + itemId, { method: 'DELETE' }).then(function(){
     return loadBackendCart();
@@ -1072,12 +827,13 @@ function removeItem(id){
 function renderCart(){
   var body = document.getElementById('cartBody');
   var checkout = document.getElementById('checkoutCart');
-  var items = (cartData && Array.isArray(cartData.items)) ? cartData.items : [];
+  var ids = Object.keys(cart);
   var count = 0, total = 0, fullTotal = 0;
-  items.forEach(function(item){
-    var qty = Number(item.quantity || 0);
-    var unitPrice = Number(item.price || 0);
-    var pricing = getQuantityPricing(unitPrice, qty);
+  ids.forEach(function(id){
+    var product = PRODUCTS.find(function(x){ return Number(x.id) === Number(id); });
+    if(!product) return;
+    var qty = cart[id] || 0;
+    var pricing = getQuantityPricing(product.price, qty);
     count += pricing.qty;
     total += pricing.discountedTotal;
     fullTotal += pricing.normalTotal;
@@ -1099,26 +855,22 @@ function renderCart(){
       savingsEl.style.display = 'none';
     }
   }
-  if(!items.length){
+  if(!ids.length){
     if(body) body.innerHTML = '<p class="cart-empty">Your cart is empty.</p>';
     if(checkout) checkout.innerHTML = '<p class="cart-empty">Your cart is empty.</p>';
     return;
   }
-  var itemsHtml = items.map(function(item){
-    var itemId = Number(item.id);
-    var qty = Number(item.quantity || 0);
-    var pricing = getQuantityPricing(Number(item.price || 0), qty);
-    var displayName = String(item.name || 'Product');
-    if(item.variant_name){
-      displayName += ' (' + item.variant_name + ')';
-    }
+  var itemsHtml = ids.map(function(id){
+    var p = PRODUCTS.find(function(x){return Number(x.id)===Number(id);});
+    if(!p) return '';
+    var pricing = getQuantityPricing(p.price, cart[id]);
     var linePriceMarkup = pricing.hasDiscount
       ? '<span class="price-normal">' + formatMoney(pricing.normalTotal) + '</span><span class="price-discount">' + formatMoney(pricing.discountedTotal) + '</span>'
       : formatMoney(pricing.discountedTotal);
     return '<div class="cart-item"><div class="thumb"></div><div class="info">'+
-      '<div class="nm">'+escapeHtml(displayName)+'</div><div class="pr">'+linePriceMarkup+'</div>'+ 
-      '<div class="qty"><button data-dec="'+itemId+'">-</button><span>'+qty+'</span><button data-inc="'+itemId+'">+</button></div>'+ 
-      '</div><button class="rm" data-rm="'+itemId+'">Remove</button></div>';
+      '<div class="nm">'+p.name+'</div><div class="pr">'+linePriceMarkup+'</div>'+ 
+      '<div class="qty"><button data-dec="'+id+'">-</button><span>'+cart[id]+'</span><button data-inc="'+id+'">+</button></div>'+ 
+      '</div><button class="rm" data-rm="'+id+'">Remove</button></div>';
   }).join('');
   if(body) body.innerHTML = itemsHtml;
   if(checkout) checkout.innerHTML = itemsHtml;
@@ -1832,24 +1584,9 @@ async function loadProductsFromAPI(){
         description: row.description || '',
         price: Number(row.price),
         image: row.image_url,
-        stock_quantity: Number(row.stock_quantity || 0),
-        stock_status: row.stock_status || '',
-        stock_message: row.stock_message || '',
-        variants: Array.isArray(row.variants)
-          ? row.variants.map(function(v){
-              return {
-                id: Number(v.id),
-                name: v.name,
-                price: Number(v.price),
-                stock_quantity: Number(v.stock_quantity || 0)
-              };
-            })
-          : [],
         tag: category ? String(category).toUpperCase() : '',
         color: '#eef1fc;color:#2f43e0',
-        dosages: Array.isArray(row.variants)
-          ? row.variants.map(function(v){ return v.name; })
-          : []
+        dosages: []
       };
     });
     if(typeof renderProducts === 'function'){ renderProducts(getInitialProductSearchQuery()); }
@@ -2010,6 +1747,19 @@ window.addEventListener('DOMContentLoaded', function(){
         return;
       }
 
+      var items = Object.keys(cart).map(function(id){
+        var product = getProductById(id);
+        var qty = cart[id];
+        var pricing = product ? getQuantityPricing(product.price, qty) : { qty: qty, discountedTotal: 0 };
+        var discountedUnitPrice = pricing.qty > 0 ? (pricing.discountedTotal / pricing.qty) : 0;
+        return {
+          productId: id,
+          name: product ? product.name : id,
+          quantity: qty,
+          unitPrice: Number(discountedUnitPrice.toFixed(2))
+        };
+      });
+
       var shipping = {
           shipping_name: (document.getElementById('shipping_name')||{}).value || '',
           shipping_email: (document.getElementById('shipping_email')||{}).value || '',
@@ -2033,7 +1783,6 @@ window.addEventListener('DOMContentLoaded', function(){
           body: JSON.stringify(shipping)
         }).then(function(order){
           cart = {};
-          cartData = { items: [], total: 0 };
           renderCart();
           closeCart();
           showToast('Order confirmed \u2014 ' + (order.order_number || ''));

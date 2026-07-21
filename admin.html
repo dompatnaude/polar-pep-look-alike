@@ -9,8 +9,12 @@
     /* Admin-only styles (internal tool). Does not affect storefront. */
     .admin-wrap{max-width:1200px;margin:0 auto;padding:1.5rem;}
     .admin-bar{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin:1rem 0;}
+    .admin-bar-between{justify-content:space-between;}
     .admin-bar input,.admin-bar select{padding:.5rem .6rem;border:1px solid #cbd2dc;border-radius:8px;font:inherit;}
     .admin-filters{display:flex;gap:.4rem;flex-wrap:wrap;}
+    .admin-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem;}
+    .admin-tabs button{padding:.4rem .9rem;border:1px solid #cbd2dc;background:#fff;border-radius:8px;cursor:pointer;font:inherit;}
+    .admin-tabs button.active{background:#3f51d6;color:#fff;border-color:#3f51d6;}
     .admin-filters button{padding:.4rem .8rem;border:1px solid #cbd2dc;background:#fff;border-radius:999px;cursor:pointer;font:inherit;}
     .admin-filters button.active{background:#3f51d6;color:#fff;border-color:#3f51d6;}
     table.admin-table{width:100%;border-collapse:collapse;font-size:.92rem;}
@@ -34,6 +38,32 @@
     .hidden{display:none!important;}
     .track-form{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-top:.6rem;}
     .track-form input{padding:.45rem .55rem;border:1px solid #cbd2dc;border-radius:8px;font:inherit;}
+    .btn-sm{padding:.35rem .65rem;border-radius:8px;border:1px solid #3f51d6;background:#3f51d6;color:#fff;cursor:pointer;font:inherit;font-size:.86rem;}
+    .btn-sm.secondary{background:#fff;color:#3f51d6;}
+    .btn-sm.danger{background:#a12626;border-color:#a12626;}
+    .product-thumb{width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid #e7ebf1;background:#f4f6fa;}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.38);display:flex;align-items:flex-start;justify-content:center;padding:1rem;z-index:9999;overflow-y:auto;}
+    .modal-card{width:min(760px,100%);max-height:min(90vh,900px);background:#fff;border-radius:14px;border:1px solid #d8deea;box-shadow:0 20px 60px rgba(15,23,42,.2);display:flex;flex-direction:column;overflow:hidden;}
+    .modal-head{display:flex;justify-content:space-between;align-items:center;padding:1rem 1.1rem;border-bottom:1px solid #e8ecf4;}
+    #productForm{display:flex;flex-direction:column;flex:1 1 auto;min-height:0;overflow:hidden;}
+    .modal-body{padding:1rem 1.1rem;overflow-y:auto;scroll-behavior:smooth;flex:1 1 auto;min-height:0;}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;}
+    .form-grid .full{grid-column:1 / -1;}
+    .form-field{display:flex;flex-direction:column;gap:.35rem;}
+    .form-field input,.form-field textarea,.form-field select{padding:.5rem .6rem;border:1px solid #cbd2dc;border-radius:8px;font:inherit;}
+    .modal-actions{display:flex;gap:.6rem;justify-content:flex-end;padding:0 1.1rem 1rem;flex:0 0 auto;background:#fff;}
+    .variant-wrap{border:1px solid #e6eaf2;border-radius:10px;padding:.8rem;background:#fbfcfe;display:grid;gap:.65rem;max-height:320px;overflow-y:auto;scroll-behavior:smooth;}
+    .variant-head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;flex-wrap:wrap;}
+    .variant-mini-grid{display:grid;grid-template-columns:1.2fr .9fr .9fr;gap:.5rem;}
+    .variant-mini-grid input{padding:.45rem .55rem;border:1px solid #cbd2dc;border-radius:8px;font:inherit;}
+    .variant-list{width:100%;border-collapse:collapse;font-size:.88rem;}
+    .variant-list th,.variant-list td{padding:.45rem .4rem;border-bottom:1px solid #e8edf5;text-align:left;}
+    .variant-actions{display:flex;gap:.4rem;flex-wrap:wrap;}
+    .variant-empty{font-size:.86rem;color:#6b7280;}
+    @media (max-width: 800px){
+      .form-grid{grid-template-columns:1fr;}
+      .variant-mini-grid{grid-template-columns:1fr;}
+    }
   </style>
 </head>
 <body>
@@ -44,7 +74,7 @@
   </div></header>
 
   <div class="admin-wrap">
-    <h1>Order Fulfillment</h1>
+    <h1>Admin Console</h1>
 
     <div id="adminDenied" class="admin-panel hidden">
       <h3>Access denied</h3>
@@ -53,6 +83,12 @@
     </div>
 
     <div id="adminApp" class="hidden">
+      <div class="admin-tabs" id="adminTabs">
+        <button type="button" class="active" data-tab="orders">Orders</button>
+        <button type="button" data-tab="products">Products</button>
+      </div>
+
+      <div id="ordersSection">
       <div class="admin-bar">
         <input type="search" id="adminSearch" placeholder="Search order #, name, email, tracking&hellip;">
         <div class="admin-filters" id="adminFilters">
@@ -73,6 +109,95 @@
       </table>
 
       <div id="orderDetail" class="admin-panel hidden"></div>
+      </div>
+
+      <div id="productsSection" class="hidden">
+        <div class="admin-bar admin-bar-between">
+          <input type="search" id="productSearch" placeholder="Search product name, slug, SKU, category&hellip;">
+          <button type="button" class="btn-sm" id="btnAddProduct">Add Product</button>
+        </div>
+        <table class="admin-table">
+          <thead><tr>
+            <th>Image</th><th>Name</th><th>Category</th><th>Price</th>
+            <th>Stock</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="productsBody"><tr><td colspan="7" class="muted">Loading&hellip;</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop hidden" id="productModalWrap" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="productModalTitle" style="margin:0;">Add Product</h3>
+        <button class="link-btn" type="button" id="productModalClose">Close</button>
+      </div>
+      <form id="productForm">
+        <div class="modal-body">
+          <div class="form-grid">
+            <label class="form-field full">Product name
+              <input type="text" name="name" required maxlength="255">
+            </label>
+            <label class="form-field">Slug
+              <input type="text" name="slug" required maxlength="255" placeholder="example-product-slug">
+            </label>
+            <label class="form-field">Category
+              <input type="text" name="category" maxlength="100">
+            </label>
+            <label class="form-field">Price
+              <input type="number" name="price" required min="0" step="0.01">
+            </label>
+            <label class="form-field">SKU
+              <input type="text" name="sku" maxlength="100">
+            </label>
+            <label class="form-field">Stock quantity
+              <input type="number" name="stock_quantity" required min="0" step="1">
+            </label>
+            <label class="form-field">Image URL
+              <input type="url" name="image_url" maxlength="2000">
+            </label>
+            <label class="form-field full">Description
+              <textarea name="description" rows="5" maxlength="20000"></textarea>
+            </label>
+            <label class="form-field">Status
+              <select name="active">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </label>
+
+            <div class="form-field full">
+              <span><strong>Variants / Dosages</strong></span>
+              <div class="variant-wrap" id="variantWrap">
+                <div class="variant-head">
+                  <span class="muted" id="variantHint">Save product first to add variants.</span>
+                </div>
+                <div class="variant-mini-grid hidden" id="variantCreateRow">
+                  <input type="text" id="variantName" placeholder="Dosage name (example: 10mg)" maxlength="100">
+                  <input type="number" id="variantPrice" placeholder="Price" min="0" step="0.01">
+                  <input type="number" id="variantStock" placeholder="Inventory" min="0" step="1">
+                </div>
+                <div>
+                  <button class="btn-sm hidden" type="button" id="btnAddVariant">Add Dosage Option</button>
+                </div>
+                <table class="variant-list hidden" id="variantListTable">
+                  <thead>
+                    <tr><th>Dosage</th><th>Price</th><th>Inventory</th><th>Status</th><th>Actions</th></tr>
+                  </thead>
+                  <tbody id="variantRows"></tbody>
+                </table>
+                <div class="variant-empty" id="variantEmpty">No variants yet.</div>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" name="product_id">
+        </div>
+        <div class="modal-actions">
+          <button class="btn-sm secondary" type="button" id="productModalCancel">Cancel</button>
+          <button class="btn-sm" type="submit" id="productModalSave">Save Product</button>
+        </div>
+      </form>
     </div>
   </div>
 
