@@ -1,8 +1,4 @@
 const express = require('express');
-const productsRouter = require("./routes/products");
-const createCartRouter = require("./routes/cart");
-const createOrdersRouter = require("./routes/orders");
-const { transferGuestCart } = require("./routes/cart");
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const bcrypt = require('bcryptjs');
@@ -409,7 +405,6 @@ app.post('/api/auth/signup', async (req, res) => {
 
   await saveOrUpdateUser(user);
   req.session.userId = user.id;
-      await transferGuestCart(req.sessionID, user.id);
 
   return res.status(201).json({ user: toPublicUser(user) });
 });
@@ -433,7 +428,6 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
   req.session.userId = user.id;
-      await transferGuestCart(req.sessionID, user.id);
   return res.json({ user: toPublicUser(user) });
 });
 
@@ -483,7 +477,6 @@ app.get('/auth/google/callback', (req, res, next) => {
 
   return passport.authenticate('google', { failureRedirect: withAuthQuery(returnTo, 'google-failed') })(req, res, () => {
     req.session.userId = req.user.id;
-        transferGuestCart(req.sessionID, req.user.id).catch(function(e){ console.error(e); });
     res.redirect(withAuthQuery(returnTo, 'google-success'));
   });
 });
@@ -613,12 +606,7 @@ app.put('/api/account/password', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/account/orders', function (req, res, next) {
-  if (!req.user && !req.session.userId) {
-    return res.status(401).json({ error: 'Login required to place order' });
-  }
-  next();
-}, requireAuth, async (req, res) => {
+app.post('/api/account/orders', requireAuth, async (req, res) => {
   try {
     const { items } = req.body || {};
     const order = await createOrderByUserId(req.user.id, items);
@@ -631,10 +619,6 @@ app.post('/api/account/orders', function (req, res, next) {
     return res.status(500).json({ error: 'Failed to create order.' });
   }
 });
-
-app.use("/api/products", productsRouter);
-app.use("/api/cart", createCartRouter(requireAuth));
-app.use("/api/orders", createOrdersRouter(requireAuth));
 
 app.use(express.static(path.join(__dirname)));
 

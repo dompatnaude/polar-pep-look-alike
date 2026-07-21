@@ -30,17 +30,6 @@
       <div class="drawer-foot">
         <div class="tot"><span>Total</span><span id="cartTotal">$0.00</span></div>
         <div class="cart-savings" id="cartSavings" style="display:none;">You saved $0.00</div>
-        <div class="shipping-block">
-          <h2 class="sub" style="margin-top:1.2rem">Shipping Information</h2>
-          <form id="shippingForm" class="auth-form" autocomplete="on">
-            <label><span>Full Name</span><input type="text" id="shipping_name" name="shipping_name" autocomplete="name" required></label>
-            <label><span>Email</span><input type="email" id="shipping_email" name="shipping_email" autocomplete="email" required></label>
-            <label><span>Address</span><input type="text" id="shipping_address" name="shipping_address" autocomplete="street-address" required></label>
-            <label><span>City</span><input type="text" id="shipping_city" name="shipping_city" autocomplete="address-level2" required></label>
-            <label><span>State</span><input type="text" id="shipping_state" name="shipping_state" autocomplete="address-level1" required></label>
-            <label><span>ZIP</span><input type="text" id="shipping_zip" name="shipping_zip" autocomplete="postal-code" required></label>
-          </form>
-        </div>
         <button class="btn primary co" id="checkoutBtn">Place Order</button>
       </div>
     </section>

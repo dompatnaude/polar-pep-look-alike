@@ -1765,42 +1765,20 @@ window.addEventListener('DOMContentLoaded', function(){
         };
       });
 
-      var shipping = {
-          shipping_name: (document.getElementById('shipping_name')||{}).value || '',
-          shipping_email: (document.getElementById('shipping_email')||{}).value || '',
-          shipping_address: (document.getElementById('shipping_address')||{}).value || '',
-          shipping_city: (document.getElementById('shipping_city')||{}).value || '',
-          shipping_state: (document.getElementById('shipping_state')||{}).value || '',
-          shipping_zip: (document.getElementById('shipping_zip')||{}).value || ''
-        };
-        var shForm = document.getElementById('shippingForm');
-        if(shForm){
-          var missing = false;
-          Object.keys(shipping).forEach(function(k){ if(!String(shipping[k]).trim()) missing = true; });
-          if(missing){
-            if(typeof shForm.reportValidity === 'function' && !shForm.reportValidity()){ return; }
-            showToast('Please complete all shipping fields.');
-            return;
-          }
+      authApi('/api/account/orders', {
+        method: 'POST',
+        body: JSON.stringify({ items: items })
+      }).then(function(){
+        cart = {};
+        renderCart();
+        closeCart();
+        showToast('Order placed successfully.');
+        if(window.location.pathname.indexOf('checkout.html') !== -1){
+          window.location.href = 'account.html';
         }
-        authApi('/api/orders', {
-          method: 'POST',
-          body: JSON.stringify(shipping)
-        }).then(function(order){
-          cart = {};
-          renderCart();
-          closeCart();
-          showToast('Order confirmed \u2014 ' + (order.order_number || ''));
-          var qs = 'order_id=' + encodeURIComponent(order.order_id) + '&order_number=' + encodeURIComponent(order.order_number || '');
-          window.location.href = 'order-confirmation.html?' + qs;
-        }).catch(function(err){
-          if(err && err.status === 401){
-            showToast('Please sign in to place your order.');
-            openAuthModal('login');
-            return;
-          }
-          showToast(err.message || 'Failed to place order.');
-        });
+      }).catch(function(err){
+        showToast(err.message || 'Failed to place order.');
+      });
     });
   }
 

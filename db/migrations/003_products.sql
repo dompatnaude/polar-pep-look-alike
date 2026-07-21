@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS products (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    price NUMERIC(10,2) NOT NULL,
+    image_url TEXT,
+    sku VARCHAR(100) UNIQUE,
+    stock_quantity INTEGER DEFAULT 0,
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

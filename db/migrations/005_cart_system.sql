@@ -1,0 +1,16 @@
+CREATE TABLE IF NOT EXISTS carts (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER,
+    session_id VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS cart_items (
+    id SERIAL PRIMARY KEY,
+    cart_id INTEGER REFERENCES carts(id) ON DELETE CASCADE,
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(cart_id, product_id)
+);

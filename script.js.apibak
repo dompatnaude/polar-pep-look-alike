@@ -35,8 +35,6 @@ var PRODUCTS = [
 var STORAGE_KEY = 'pepxCart';
 var GATE_ACCEPTED_KEY = 'pepxGateAccepted';
 var cart = {};
-var cartData = { items: [], total: 0 };
-var cartItemIndex = {};
 var selectedProductId = null;
 var activeCategory = 'all';
 var activeSort = 'default';
@@ -750,12 +748,6 @@ function renderProductDetailPage(){
   if(checkoutBtn){
     checkoutBtn.addEventListener('click', function(){
       if(addDetailProductToCart()){
-        /* transferGuestCartCheckoutGate: require login before checkout */
-        if(!currentAuthSession){
-          showToast('Please log in or create an account to checkout.');
-          openAuthModal('login');
-          return;
-        }
         window.location.href = 'checkout.html';
       }
     });
@@ -777,57 +769,20 @@ function addSelectedProductToCart(){
 }
 
 // ---------- Cart ----------
-// --- Backend cart integration: backend is the source of truth ---
-function loadBackendCart(){
-  return authApi("/api/cart", { method: "GET" }).then(function(data){
-    cartData = { items: (data && data.items) ? data.items : [], total: (data && data.total) ? data.total : 0 };
-    // Rebuild the legacy cart map { productId: quantity } and item-id index used by renderCart/handlers.
-    cart = {};
-    cartItemIndex = {};
-    cartData.items.forEach(function(it){
-      cart[it.product_id] = it.quantity;
-      cartItemIndex[it.product_id] = it.id;
-      // Ensure the product exists in PRODUCTS so renderCart can resolve name/price/image.
-      var exists = PRODUCTS.find(function(x){ return x.id === it.product_id; });
-      if(!exists){
-        PRODUCTS.push({ id: it.product_id, name: it.name, price: Number(it.price), image: it.image_url, category: it.category });
-      }
-    });
-    renderCart();
-    return cartData;
-  }).catch(function(){
-    cartData = { items: [], total: 0 };
-    cart = {};
-    cartItemIndex = {};
-    renderCart();
-    return cartData;
-  });
-}
-
 function addToCart(id){
-  var p = PRODUCTS.find(function(x){return Number(x.id)===Number(id);});
-  return authApi('/api/cart', { method: 'POST', body: JSON.stringify({ product_id: id, quantity: 1 }) }).then(function(){
-    if(p){ showToast(p.name + ' added to cart'); } else { showToast('Added to cart'); }
-    return loadBackendCart();
-  }).catch(function(err){ showToast(err.message || 'Could not add to cart'); });
+  cart[id] = (cart[id]||0) + 1;
+  var p = PRODUCTS.find(function(x){return x.id===id;});
+  showToast(p.name + ' added to cart');
+  renderCart();
+  saveCart();
 }
 function changeQty(id, delta){
-  var itemId = cartItemIndex[id];
-  if(!itemId) return;
-  var current = cart[id] || 0;
-  var next = current + delta;
-  if(next <= 0){ return removeItem(id); }
-  return authApi('/api/cart/item/' + itemId, { method: 'PUT', body: JSON.stringify({ quantity: next }) }).then(function(){
-    return loadBackendCart();
-  }).catch(function(err){ showToast(err.message || 'Could not update cart'); });
+  cart[id] = (cart[id]||0) + delta;
+  if(cart[id] <= 0) delete cart[id];
+  renderCart();
+  saveCart();
 }
-function removeItem(id){
-  var itemId = cartItemIndex[id];
-  if(!itemId){ delete cart[id]; renderCart(); return; }
-  return authApi('/api/cart/item/' + itemId, { method: 'DELETE' }).then(function(){
-    return loadBackendCart();
-  }).catch(function(err){ showToast(err.message || 'Could not remove item'); });
-}
+function removeItem(id){ delete cart[id]; renderCart(); saveCart(); }
 
 function renderCart(){
   var body = document.getElementById('cartBody');
@@ -835,7 +790,7 @@ function renderCart(){
   var ids = Object.keys(cart);
   var count = 0, total = 0, fullTotal = 0;
   ids.forEach(function(id){
-    var product = PRODUCTS.find(function(x){ return Number(x.id) === Number(id); });
+    var product = PRODUCTS.find(function(x){ return x.id === id; });
     if(!product) return;
     var qty = cart[id] || 0;
     var pricing = getQuantityPricing(product.price, qty);
@@ -866,7 +821,7 @@ function renderCart(){
     return;
   }
   var itemsHtml = ids.map(function(id){
-    var p = PRODUCTS.find(function(x){return Number(x.id)===Number(id);});
+    var p = PRODUCTS.find(function(x){return x.id===id;});
     if(!p) return '';
     var pricing = getQuantityPricing(p.price, cart[id]);
     var linePriceMarkup = pricing.hasDiscount
@@ -1573,39 +1528,9 @@ function initGate(){
 }
 
 // ---------- Init ----------
-// ---------- Load products from API (Supabase-backed) ----------
-async function loadProductsFromAPI(){
-  try {
-    var response = await fetch('/api/products');
-    if(response.ok !== true){ throw new Error('HTTP ' + response.status); }
-    var data = await response.json();
-    if(Array.isArray(data) === false){ return; }
-    PRODUCTS = data.map(function(row){
-      var category = row.category || 'Uncategorized';
-      return {
-        id: row.id,
-        name: row.name,
-        category: category,
-        description: row.description || '',
-        price: Number(row.price),
-        image: row.image_url,
-        tag: category ? String(category).toUpperCase() : '',
-        color: '#eef1fc;color:#2f43e0',
-        dosages: []
-      };
-    });
-    if(typeof renderProducts === 'function'){ renderProducts(getInitialProductSearchQuery()); }
-    if(typeof renderHeroBestSellers === 'function'){ renderHeroBestSellers(); }
-    if(typeof renderProductDetailPage === 'function'){ renderProductDetailPage(); }
-    if(typeof renderCart === 'function'){ renderCart(); }
-  } catch(error){
-    console.error('Failed to load products from API:', error);
-  }
-}
-
 window.addEventListener('DOMContentLoaded', function(){
   var initialSearchQuery = getInitialProductSearchQuery();
-  loadBackendCart();
+  loadCart();
   initShopCategoryFromUrl();
   initMenuDropdowns();
   initMobileNav();
@@ -1619,7 +1544,6 @@ window.addEventListener('DOMContentLoaded', function(){
   initAccountPage();
   initGate();
   initAuth();
-      loadProductsFromAPI();
 
   // FAQ accordion
   document.addEventListener('click', function(e){
@@ -1765,42 +1689,20 @@ window.addEventListener('DOMContentLoaded', function(){
         };
       });
 
-      var shipping = {
-          shipping_name: (document.getElementById('shipping_name')||{}).value || '',
-          shipping_email: (document.getElementById('shipping_email')||{}).value || '',
-          shipping_address: (document.getElementById('shipping_address')||{}).value || '',
-          shipping_city: (document.getElementById('shipping_city')||{}).value || '',
-          shipping_state: (document.getElementById('shipping_state')||{}).value || '',
-          shipping_zip: (document.getElementById('shipping_zip')||{}).value || ''
-        };
-        var shForm = document.getElementById('shippingForm');
-        if(shForm){
-          var missing = false;
-          Object.keys(shipping).forEach(function(k){ if(!String(shipping[k]).trim()) missing = true; });
-          if(missing){
-            if(typeof shForm.reportValidity === 'function' && !shForm.reportValidity()){ return; }
-            showToast('Please complete all shipping fields.');
-            return;
-          }
+      authApi('/api/account/orders', {
+        method: 'POST',
+        body: JSON.stringify({ items: items })
+      }).then(function(){
+        cart = {};
+        renderCart();
+        closeCart();
+        showToast('Order placed successfully.');
+        if(window.location.pathname.indexOf('checkout.html') !== -1){
+          window.location.href = 'account.html';
         }
-        authApi('/api/orders', {
-          method: 'POST',
-          body: JSON.stringify(shipping)
-        }).then(function(order){
-          cart = {};
-          renderCart();
-          closeCart();
-          showToast('Order confirmed \u2014 ' + (order.order_number || ''));
-          var qs = 'order_id=' + encodeURIComponent(order.order_id) + '&order_number=' + encodeURIComponent(order.order_number || '');
-          window.location.href = 'order-confirmation.html?' + qs;
-        }).catch(function(err){
-          if(err && err.status === 401){
-            showToast('Please sign in to place your order.');
-            openAuthModal('login');
-            return;
-          }
-          showToast(err.message || 'Failed to place order.');
-        });
+      }).catch(function(err){
+        showToast(err.message || 'Failed to place order.');
+      });
     });
   }
 
