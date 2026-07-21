@@ -266,43 +266,38 @@ async function createOrder(req, res) {
     const shippingCost = money(body.shipping_cost || 0);
     const total = money(subtotal + shippingCost);
 
-    // 5. Generate a unique order_number (retry on the rare UNIQUE collision).
-    let order = null;
-    for (let attempt = 0; attempt < 5 && !order; attempt++) {
-      const orderNumber = generateOrderNumber();
-      try {
-        const orderRes = await client.query(
-          `INSERT INTO orders
-             (order_number, user_id, status, subtotal, shipping_cost, total,
-              shipping_name, shipping_email, shipping_address,
-              shipping_city, shipping_state, shipping_zip)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-           RETURNING id, order_number, status`,
-          [
-            orderNumber,
-            userId,
-            "pending_payment",
-            subtotal,
-            shippingCost,
-            total,
-            body.shipping_name || null,
-            body.shipping_email || null,
-            body.shipping_address || null,
-            body.shipping_city || null,
-            body.shipping_state || null,
-            body.shipping_zip || null,
-          ]
-        );
-        order = orderRes.rows[0];
-      } catch (e) {
-        // 23505 = unique_violation on order_number; regenerate and retry.
-        if (e.code === "23505") continue;
-        throw e;
-      }
-    }
+    // 5. Create the order. Let PostgreSQL generate the identity id, then
+    // derive the deterministic order_number (PX + id + 100000) from that id.
+    // order_number is NOT NULL + UNIQUE, so insert a temporary unique
+    // placeholder first, then update it once the generated id is known.
+    const tempOrderNumber = `TMP-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const insertRes = await client.query(
+      `INSERT INTO orders (order_number, user_id, status, subtotal, shipping_cost, total, shipping_name, shipping_email, shipping_address, shipping_city, shipping_state, shipping_zip) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+      [
+        tempOrderNumber,
+        userId,
+        "pending_payment",
+        subtotal,
+        shippingCost,
+        total,
+        body.shipping_name || null,
+        body.shipping_email || null,
+        body.shipping_address || null,
+        body.shipping_city || null,
+        body.shipping_state || null,
+        body.shipping_zip || null,
+      ]
+    );
+    const orderId = insertRes.rows[0].id;
+    const finalOrderNumber = `PX${String(Number(orderId) + 100000).padStart(6, "0")}`;
+    const orderRes = await client.query(
+      `UPDATE orders SET order_number = $1 WHERE id = $2 RETURNING id, order_number, status`,
+      [finalOrderNumber, orderId]
+    );
+    const order = orderRes.rows[0];
     if (!order) {
       await client.query("ROLLBACK");
-      return res.status(500).json({ error: "Could not generate order number" });
+      return res.status(500).json({ error: "Could not create order" });
     }
 
     // 6. Copy cart items into order_items with discounted unit price snapshot.

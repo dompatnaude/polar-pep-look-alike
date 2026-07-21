@@ -680,11 +680,8 @@ function renderHeroBestSellers(){
 
   function draw(){
     var product = featured[activeIndex];
-    rail.innerHTML = '<a class="hero-best-card" href="'+getProductUrl(product.id)+'" aria-label="'+escapeHtml(product.name)+' details">'+
-      '<img class="hero-best-image" src="'+getProductImage(product)+'" alt="'+escapeHtml(product.name)+' product image" loading="lazy">'+
-      '<p class="hero-best-title">'+escapeHtml(product.name)+'</p>'+
-      '<p class="hero-best-price">$'+product.price.toFixed(2)+'</p>'+
-    '</a>';
+    rail.innerHTML = renderProductCards([product], { viewLabel: 'View Details' });
+    attachProductCardInteractions(rail);
   }
 
   function clearAnimationClasses(){
@@ -1488,35 +1485,133 @@ function formatOrderDate(value){
   });
 }
 
-function buildOrderCard(order){
-  var itemsHtml = (order.items || []).map(function(item){
-    return '<li><span>' + escapeHtml(item.name) + ' x' + item.quantity + '</span><span>$' + Number(item.lineTotal || 0).toFixed(2) + '</span></li>';
-  }).join('');
+var ACCOUNT_ADDRESS_BOOK_PREFIX = '__PEPX_ADDRESS_BOOK_V1__:';
 
-  return '<article class="account-order-card">' +
-    '<div class="account-order-head"><h4>Order #' + escapeHtml(order.id.slice(0, 8).toUpperCase()) + '</h4><span class="account-order-status">' + escapeHtml(order.status || 'Processing') + '</span></div>' +
-    '<p class="account-order-date">Placed ' + escapeHtml(formatOrderDate(order.createdAt)) + '</p>' +
-    '<ul class="account-order-items">' + itemsHtml + '</ul>' +
-    '<div class="account-order-total">Total: $' + Number(order.totalAmount || 0).toFixed(2) + '</div>' +
-    '</article>';
+function formatMoney(value){
+  return '$' + Number(value || 0).toFixed(2);
 }
 
-function renderOrdersByType(orders){
-  var currentRoot = document.getElementById('currentOrdersList');
-  var pastRoot = document.getElementById('pastOrdersList');
-  if(!currentRoot || !pastRoot) return;
+function normalizeStatus(status){
+  return String(status || '').trim().toLowerCase();
+}
 
-  var currentStatuses = { Processing: true, Pending: true, Shipped: true };
-  var current = orders.filter(function(order){ return currentStatuses[order.status || '']; });
-  var past = orders.filter(function(order){ return !currentStatuses[order.status || '']; });
+function getStatusTone(status){
+  var key = normalizeStatus(status);
+  if(key === 'cancelled' || key === 'failed') return 'danger';
+  if(key === 'shipped' || key === 'delivered') return 'success';
+  return 'info';
+}
 
-  currentRoot.innerHTML = current.length
-    ? current.map(buildOrderCard).join('')
-    : '<p class="account-empty">No current orders.</p>';
+function formatMemberSince(value){
+  var dt = new Date(value);
+  if(Number.isNaN(dt.getTime())) return '-';
+  return dt.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short'
+  });
+}
 
-  pastRoot.innerHTML = past.length
-    ? past.map(buildOrderCard).join('')
-    : '<p class="account-empty">No past orders.</p>';
+function buildOrderListCard(order){
+  var status = String(order.status || 'processing');
+  var statusTone = getStatusTone(status);
+  return '<article class="account-order-card">' +
+    '<div class="account-order-head">' +
+      '<h4>' + escapeHtml(order.order_number || ('Order #' + order.id)) + '</h4>' +
+      '<span class="account-order-status ' + statusTone + '">' + escapeHtml(status) + '</span>' +
+    '</div>' +
+    '<div class="account-order-meta">' +
+      '<span><strong>Date:</strong> ' + escapeHtml(formatOrderDate(order.created_at)) + '</span>' +
+      '<span><strong>Total:</strong> ' + formatMoney(order.total) + '</span>' +
+    '</div>' +
+    '<div class="account-order-actions">' +
+      '<button type="button" class="btn ghost btn-sm" data-order-view="' + Number(order.id) + '">View Order</button>' +
+    '</div>' +
+  '</article>';
+}
+
+function getOrderTimelineMarkup(order){
+  var key = normalizeStatus(order.status);
+  var statusRank = {
+    pending_payment: 0,
+    paid: 1,
+    processing: 2,
+    shipped: 3,
+    delivered: 4,
+    completed: 4,
+    cancelled: 5,
+    failed: 5
+  };
+  var steps = [
+    { key: 'pending_payment', label: 'Order placed', date: order.created_at },
+    { key: 'paid', label: 'Payment received' },
+    { key: 'processing', label: 'Processing' },
+    { key: 'shipped', label: 'Shipped', date: order.shipped_at },
+    { key: 'delivered', label: 'Delivered' }
+  ];
+  var currentRank = statusRank.hasOwnProperty(key) ? statusRank[key] : 2;
+
+  return '<ol class="account-timeline">' + steps.map(function(step, idx){
+    var stepRank = statusRank[step.key];
+    var stepClass = '';
+    if(key === 'cancelled' || key === 'failed') {
+      stepClass = idx === 0 ? 'done' : '';
+    } else if(stepRank < currentRank) {
+      stepClass = 'done';
+    } else if(stepRank === currentRank || (step.key === 'delivered' && currentRank >= 4)) {
+      stepClass = 'current';
+    }
+    var dateText = step.date ? formatOrderDate(step.date) : '';
+    return '<li class="' + stepClass + '"><span>' + escapeHtml(step.label) + '</span>' + (dateText ? ('<small>' + escapeHtml(dateText) + '</small>') : '') + '</li>';
+  }).join('') + '</ol>';
+}
+
+function parseAddressBook(profile){
+  var raw = String((profile && profile.shippingAddress) || '');
+  if(raw.indexOf(ACCOUNT_ADDRESS_BOOK_PREFIX) === 0){
+    try {
+      var parsed = JSON.parse(raw.slice(ACCOUNT_ADDRESS_BOOK_PREFIX.length));
+      return {
+        addresses: Array.isArray(parsed.addresses) ? parsed.addresses : [],
+        defaultId: parsed.defaultId || null,
+        phone: String(parsed.phone || '').trim()
+      };
+    } catch (err) {}
+  }
+
+  var addresses = [];
+  var legacy = raw.trim();
+  if(legacy){
+    addresses.push({
+      id: 'addr-1',
+      fullName: String((profile && profile.name) || '').trim(),
+      street: legacy,
+      city: '',
+      state: '',
+      zip: '',
+      country: 'United States'
+    });
+  }
+
+  return {
+    addresses: addresses,
+    defaultId: addresses.length ? addresses[0].id : null,
+    phone: ''
+  };
+}
+
+function formatAddressSingleLine(address){
+  if(!address) return '';
+  return [address.street, address.city, address.state, address.zip, address.country]
+    .filter(function(part){ return String(part || '').trim(); })
+    .join(', ');
+}
+
+function serializeAddressBook(book){
+  return ACCOUNT_ADDRESS_BOOK_PREFIX + JSON.stringify({
+    addresses: Array.isArray(book.addresses) ? book.addresses : [],
+    defaultId: book.defaultId || null,
+    phone: String(book.phone || '').trim()
+  });
 }
 
 function initAccountPage(){
@@ -1528,7 +1623,29 @@ function initAccountPage(){
   var addressForm = document.getElementById('accountAddressForm');
   var passwordForm = document.getElementById('accountPasswordForm');
   var logoutBtn = document.getElementById('accountLogoutBtn');
-  var accountSections = page.querySelectorAll('.account-card, .account-grid');
+  var navButtons = page.querySelectorAll('[data-account-tab]');
+  var switchTabButtons = page.querySelectorAll('[data-switch-tab]');
+  var panels = page.querySelectorAll('[data-account-panel]');
+  var ordersList = document.getElementById('ordersList');
+  var orderDetailCard = document.getElementById('orderDetailCard');
+  var orderDetailBody = document.getElementById('orderDetailBody');
+  var orderDetailTitle = document.getElementById('orderDetailTitle');
+  var orderDetailBackBtn = document.getElementById('orderDetailBackBtn');
+  var addressListRoot = document.getElementById('accountAddressList');
+  var addressAddBtn = document.getElementById('accountAddressAddBtn');
+  var addressEditor = document.getElementById('accountAddressEditor');
+  var addressEditorTitle = document.getElementById('accountAddressEditorTitle');
+  var addressCancelBtn = document.getElementById('accountAddressCancelBtn');
+  var overviewRecentOrders = document.getElementById('overviewRecentOrders');
+  var securityInfo = document.getElementById('securityInfo');
+  var welcome = document.getElementById('accountWelcome');
+
+  var state = {
+    activeTab: 'overview',
+    profile: null,
+    orders: [],
+    addressBook: { addresses: [], defaultId: null, phone: '' }
+  };
 
   function setPageMessage(text, isError){
     if(!msg) return;
@@ -1538,28 +1655,212 @@ function initAccountPage(){
   }
 
   function setAccountLocked(locked){
-    accountSections.forEach(function(section){
-      section.style.display = locked ? 'none' : '';
-    });
-    if(logoutBtn){
-      logoutBtn.style.display = locked ? 'none' : '';
+    page.classList.toggle('account-locked', !!locked);
+    if(locked){
+      panels.forEach(function(panel){ panel.classList.remove('active'); });
+      if(orderDetailCard) orderDetailCard.classList.add('hidden');
+    } else {
+      setActiveTab(state.activeTab);
     }
   }
 
-  function loadOverview(){
-    return authApi('/api/account/overview', { method: 'GET' }).then(function(data){
-      var profile = data.profile || {};
+  function setActiveTab(tab){
+    state.activeTab = tab;
+    navButtons.forEach(function(btn){
+      btn.classList.toggle('active', btn.getAttribute('data-account-tab') === tab);
+    });
+    panels.forEach(function(panel){
+      panel.classList.toggle('active', panel.getAttribute('data-account-panel') === tab);
+    });
+    if(tab !== 'orders' && orderDetailCard){
+      orderDetailCard.classList.add('hidden');
+    }
+  }
+
+  function renderOverviewCards(){
+    var totalEl = document.getElementById('summaryTotalOrders');
+    var recentEl = document.getElementById('summaryRecentOrder');
+    var statusEl = document.getElementById('summaryAccountStatus');
+    var memberEl = document.getElementById('summaryMemberSince');
+    var orders = state.orders || [];
+    var profile = state.profile || {};
+    var recent = orders[0] || null;
+
+    if(totalEl) totalEl.textContent = String(orders.length);
+    if(recentEl) recentEl.textContent = recent ? String(recent.order_number || ('#' + recent.id)) : '-';
+    if(statusEl) statusEl.textContent = currentAuthSession ? 'Active' : 'Guest';
+    if(memberEl) memberEl.textContent = formatMemberSince(currentAuthSession && currentAuthSession.createdAt);
+
+    if(welcome){
+      var displayName = (profile.name || (currentAuthSession && currentAuthSession.name) || 'Researcher').trim();
+      welcome.textContent = 'Welcome back, ' + displayName;
+    }
+
+    if(overviewRecentOrders){
+      var preview = orders.slice(0, 3);
+      overviewRecentOrders.innerHTML = preview.length
+        ? preview.map(buildOrderListCard).join('')
+        : '<p class="account-empty">No orders yet.</p>';
+    }
+  }
+
+  function renderOrdersList(){
+    if(!ordersList) return;
+    var orders = state.orders || [];
+    ordersList.innerHTML = orders.length
+      ? orders.map(buildOrderListCard).join('')
+      : '<p class="account-empty">No orders found.</p>';
+  }
+
+  function renderOrderDetail(detail){
+    if(!orderDetailCard || !orderDetailBody || !detail || !detail.order) return;
+    var order = detail.order;
+    var items = Array.isArray(detail.items) ? detail.items : [];
+    var shippingLine = [order.shipping_address, order.shipping_city, order.shipping_state, order.shipping_zip]
+      .filter(function(part){ return String(part || '').trim(); })
+      .join(', ');
+
+    if(orderDetailTitle){
+      orderDetailTitle.textContent = 'Order Details - ' + String(order.order_number || ('#' + order.id));
+    }
+
+    var itemRows = items.length ? items.map(function(item){
+      var dosage = item.variant_name ? ('<span class="account-item-dose">' + escapeHtml(item.variant_name) + '</span>') : '';
+      var qty = Number(item.quantity || 0);
+      var price = Number(item.variant_price != null ? item.variant_price : item.price || 0);
+      return '<tr>' +
+        '<td>' + escapeHtml(item.name || '') + dosage + '</td>' +
+        '<td>' + qty + '</td>' +
+        '<td>' + formatMoney(price) + '</td>' +
+        '<td>' + formatMoney(price * qty) + '</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="4">No line items found.</td></tr>';
+
+    orderDetailBody.innerHTML = '' +
+      '<div class="account-order-detail-grid">' +
+        '<div class="account-order-detail-block">' +
+          '<h4>Items</h4>' +
+          '<div class="account-order-table-wrap">' +
+            '<table class="account-order-table">' +
+              '<thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr></thead>' +
+              '<tbody>' + itemRows + '</tbody>' +
+            '</table>' +
+          '</div>' +
+        '</div>' +
+        '<div class="account-order-detail-block">' +
+          '<h4>Shipping</h4>' +
+          '<p><strong>Name:</strong> ' + escapeHtml(order.shipping_name || '-') + '</p>' +
+          '<p><strong>Email:</strong> ' + escapeHtml(order.shipping_email || '-') + '</p>' +
+          '<p><strong>Address:</strong> ' + escapeHtml(shippingLine || '-') + '</p>' +
+          '<p><strong>Tracking:</strong> ' + escapeHtml(order.tracking_number || 'Not assigned yet') + '</p>' +
+          '<p><strong>Status:</strong> ' + escapeHtml(order.status || '-') + '</p>' +
+          '<p><strong>Total:</strong> ' + formatMoney(order.total) + '</p>' +
+        '</div>' +
+      '</div>' +
+      '<div class="account-order-detail-block">' +
+        '<h4>Order Status Timeline</h4>' +
+        getOrderTimelineMarkup(order) +
+      '</div>';
+
+    orderDetailCard.classList.remove('hidden');
+  }
+
+  function renderAddressList(){
+    if(!addressListRoot) return;
+    var addresses = state.addressBook.addresses || [];
+    if(!addresses.length){
+      addressListRoot.innerHTML = '<p class="account-empty">No saved addresses yet.</p>';
+      return;
+    }
+
+    addressListRoot.innerHTML = addresses.map(function(addr){
+      var isDefault = String(addr.id) === String(state.addressBook.defaultId);
+      return '<article class="account-address-card" data-address-id="' + escapeHtml(String(addr.id)) + '">' +
+        '<div class="account-address-head">' +
+          '<h4>' + escapeHtml(addr.fullName || 'Shipping Address') + '</h4>' +
+          (isDefault ? '<span class="account-default-badge">Default</span>' : '') +
+        '</div>' +
+        '<p>' + escapeHtml(formatAddressSingleLine(addr)) + '</p>' +
+        '<div class="account-address-actions">' +
+          '<button type="button" class="btn ghost btn-sm" data-address-edit="' + escapeHtml(String(addr.id)) + '">Edit</button>' +
+          '<button type="button" class="btn ghost btn-sm" data-address-default="' + escapeHtml(String(addr.id)) + '">Set Default</button>' +
+          '<button type="button" class="btn ghost btn-sm" data-address-delete="' + escapeHtml(String(addr.id)) + '">Delete</button>' +
+        '</div>' +
+      '</article>';
+    }).join('');
+  }
+
+  function showAddressEditor(address){
+    if(!addressEditor || !addressForm) return;
+    addressEditor.classList.remove('hidden');
+    if(addressEditorTitle){
+      addressEditorTitle.textContent = address ? 'Edit Address' : 'Add Address';
+    }
+    addressForm.reset();
+    addressForm.elements.addressId.value = address ? String(address.id) : '';
+    addressForm.elements.fullName.value = address ? (address.fullName || '') : '';
+    addressForm.elements.street.value = address ? (address.street || '') : '';
+    addressForm.elements.city.value = address ? (address.city || '') : '';
+    addressForm.elements.state.value = address ? (address.state || '') : '';
+    addressForm.elements.zip.value = address ? (address.zip || '') : '';
+    addressForm.elements.country.value = address ? (address.country || 'United States') : 'United States';
+    addressForm.elements.isDefault.checked = address
+      ? String(address.id) === String(state.addressBook.defaultId)
+      : !(state.addressBook.addresses || []).length;
+  }
+
+  function hideAddressEditor(){
+    if(!addressEditor || !addressForm) return;
+    addressEditor.classList.add('hidden');
+    addressForm.reset();
+  }
+
+  function persistAddressBook(){
+    var defaultAddress = (state.addressBook.addresses || []).find(function(addr){
+      return String(addr.id) === String(state.addressBook.defaultId);
+    }) || null;
+    var billingAddress = defaultAddress ? formatAddressSingleLine(defaultAddress) : '';
+
+    return authApi('/api/account/addresses', {
+      method: 'PUT',
+      body: JSON.stringify({
+        billingAddress: billingAddress,
+        shippingAddress: serializeAddressBook(state.addressBook)
+      })
+    });
+  }
+
+  function loadDashboard(){
+    return Promise.all([
+      authApi('/api/account/overview', { method: 'GET' }),
+      authApi('/api/orders', { method: 'GET' })
+    ]).then(function(results){
+      var overview = results[0] || {};
+      var orderRows = Array.isArray(results[1]) ? results[1] : [];
+      var profile = overview.profile || {};
+
+      state.profile = profile;
+      state.orders = orderRows;
+      state.addressBook = parseAddressBook(profile);
+
       if(profileForm){
         profileForm.name.value = profile.name || '';
         profileForm.email.value = profile.email || '';
+        profileForm.phone.value = state.addressBook.phone || '';
         profileForm.institution.value = profile.institution || '';
       }
-      if(addressForm){
-        addressForm.billingAddress.value = profile.billingAddress || '';
-        addressForm.shippingAddress.value = profile.shippingAddress || '';
+
+      if(securityInfo){
+        var providerText = profile.provider || (currentAuthSession && currentAuthSession.provider) || 'Email';
+        securityInfo.innerHTML = '<p><strong>Login Method:</strong> ' + escapeHtml(providerText) + '</p>' +
+          '<p><strong>Account Email:</strong> ' + escapeHtml(profile.email || '') + '</p>';
       }
-      renderOrdersByType(data.orders || []);
-      return data;
+
+      renderOverviewCards();
+      renderOrdersList();
+      renderAddressList();
+      hideAddressEditor();
+      return results;
     });
   }
 
@@ -1574,7 +1875,7 @@ function initAccountPage(){
 
     setAccountLocked(false);
     setPageMessage('', false);
-    loadOverview().catch(function(err){
+    loadDashboard().catch(function(err){
       setPageMessage(err.message || 'Failed to load account data.', true);
     });
   });
@@ -1590,15 +1891,123 @@ function initAccountPage(){
 
     setAccountLocked(false);
     setPageMessage('', false);
-    loadOverview().catch(function(err){
+    loadDashboard().catch(function(err){
       setPageMessage(err.message || 'Failed to load account data.', true);
     });
   });
+
+  navButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var tab = btn.getAttribute('data-account-tab');
+      if(tab) setActiveTab(tab);
+    });
+  });
+
+  switchTabButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var tab = btn.getAttribute('data-switch-tab');
+      if(tab) setActiveTab(tab);
+    });
+  });
+
+  if(ordersList){
+    ordersList.addEventListener('click', function(e){
+      var viewBtn = e.target.closest('[data-order-view]');
+      if(!viewBtn) return;
+      var orderId = parseInt(viewBtn.getAttribute('data-order-view'), 10);
+      if(!Number.isInteger(orderId)) return;
+      authApi('/api/orders/' + orderId, { method: 'GET' })
+        .then(function(detail){
+          renderOrderDetail(detail);
+        })
+        .catch(function(err){
+          setPageMessage(err.message || 'Failed to load order details.', true);
+        });
+    });
+  }
+
+  if(overviewRecentOrders){
+    overviewRecentOrders.addEventListener('click', function(e){
+      var viewBtn = e.target.closest('[data-order-view]');
+      if(!viewBtn) return;
+      var orderId = parseInt(viewBtn.getAttribute('data-order-view'), 10);
+      if(!Number.isInteger(orderId)) return;
+      setActiveTab('orders');
+      authApi('/api/orders/' + orderId, { method: 'GET' })
+        .then(function(detail){
+          renderOrderDetail(detail);
+        })
+        .catch(function(err){
+          setPageMessage(err.message || 'Failed to load order details.', true);
+        });
+    });
+  }
+
+  if(orderDetailBackBtn){
+    orderDetailBackBtn.addEventListener('click', function(){
+      if(orderDetailCard) orderDetailCard.classList.add('hidden');
+    });
+  }
+
+  if(addressAddBtn){
+    addressAddBtn.addEventListener('click', function(){
+      showAddressEditor(null);
+    });
+  }
+
+  if(addressCancelBtn){
+    addressCancelBtn.addEventListener('click', hideAddressEditor);
+  }
+
+  if(addressListRoot){
+    addressListRoot.addEventListener('click', function(e){
+      var editBtn = e.target.closest('[data-address-edit]');
+      if(editBtn){
+        var editId = editBtn.getAttribute('data-address-edit');
+        var target = (state.addressBook.addresses || []).find(function(addr){ return String(addr.id) === String(editId); });
+        showAddressEditor(target || null);
+        return;
+      }
+
+      var defaultBtn = e.target.closest('[data-address-default]');
+      if(defaultBtn){
+        state.addressBook.defaultId = defaultBtn.getAttribute('data-address-default');
+        persistAddressBook().then(function(){
+          renderAddressList();
+          setPageMessage('Default address updated.', false);
+        }).catch(function(err){
+          setPageMessage(err.message || 'Failed to update default address.', true);
+        });
+        return;
+      }
+
+      var deleteBtn = e.target.closest('[data-address-delete]');
+      if(deleteBtn){
+        var deleteId = deleteBtn.getAttribute('data-address-delete');
+        state.addressBook.addresses = (state.addressBook.addresses || []).filter(function(addr){
+          return String(addr.id) !== String(deleteId);
+        });
+        if(String(state.addressBook.defaultId) === String(deleteId)){
+          state.addressBook.defaultId = state.addressBook.addresses.length
+            ? state.addressBook.addresses[0].id
+            : null;
+        }
+        persistAddressBook().then(function(){
+          renderAddressList();
+          hideAddressEditor();
+          setPageMessage('Address deleted.', false);
+        }).catch(function(err){
+          setPageMessage(err.message || 'Failed to delete address.', true);
+        });
+      }
+    });
+  }
 
   if(profileForm){
     profileForm.addEventListener('submit', function(e){
       e.preventDefault();
       var fd = new FormData(profileForm);
+      var nextPhone = String(fd.get('phone') || '').trim();
       authApi('/api/account/profile', {
         method: 'PUT',
         body: JSON.stringify({
@@ -1608,7 +2017,11 @@ function initAccountPage(){
         })
       }).then(function(data){
         currentAuthSession = data.user || currentAuthSession;
+        state.addressBook.phone = nextPhone;
+        return persistAddressBook().catch(function(){ return null; });
+      }).then(function(){
         updateAccountButtonState();
+        renderOverviewCards();
         setPageMessage('Profile updated.', false);
       }).catch(function(err){
         setPageMessage(err.message || 'Failed to update profile.', true);
@@ -1620,14 +2033,29 @@ function initAccountPage(){
     addressForm.addEventListener('submit', function(e){
       e.preventDefault();
       var fd = new FormData(addressForm);
-      authApi('/api/account/addresses', {
-        method: 'PUT',
-        body: JSON.stringify({
-          billingAddress: (fd.get('billingAddress') || '').toString(),
-          shippingAddress: (fd.get('shippingAddress') || '').toString()
-        })
-      }).then(function(){
-        setPageMessage('Address information updated.', false);
+      var addressId = String(fd.get('addressId') || '').trim() || ('addr-' + Date.now());
+      var payload = {
+        id: addressId,
+        fullName: String(fd.get('fullName') || '').trim(),
+        street: String(fd.get('street') || '').trim(),
+        city: String(fd.get('city') || '').trim(),
+        state: String(fd.get('state') || '').trim(),
+        zip: String(fd.get('zip') || '').trim(),
+        country: String(fd.get('country') || '').trim()
+      };
+
+      state.addressBook.addresses = (state.addressBook.addresses || []).filter(function(addr){
+        return String(addr.id) !== String(addressId);
+      }).concat([payload]);
+
+      if(fd.get('isDefault') || !state.addressBook.defaultId){
+        state.addressBook.defaultId = addressId;
+      }
+
+      persistAddressBook().then(function(){
+        renderAddressList();
+        hideAddressEditor();
+        setPageMessage('Address saved.', false);
       }).catch(function(err){
         setPageMessage(err.message || 'Failed to update addresses.', true);
       });

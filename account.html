@@ -27,77 +27,181 @@
 
   <main class="container account-page" data-account-page>
     <section class="section">
-      <div class="account-head">
-        <h1>My Account</h1>
-        <button type="button" class="btn ghost" id="accountLogoutBtn">Log Out</button>
-      </div>
-      <p class="sub">View your orders, manage addresses, and update account settings.</p>
-      <p class="auth-message" id="accountPageMessage" aria-live="polite"></p>
+      <div class="account-shell">
+        <aside class="account-sidebar account-card" aria-label="Account navigation">
+          <div class="account-sidebar-head">
+            <p class="account-kicker">My Account</p>
+            <h1>Dashboard</h1>
+          </div>
+          <nav class="account-nav" id="accountNav">
+            <button type="button" class="account-nav-item active" data-account-tab="overview">Account Overview</button>
+            <button type="button" class="account-nav-item" data-account-tab="orders">Orders</button>
+            <button type="button" class="account-nav-item" data-account-tab="profile">Profile Information</button>
+            <button type="button" class="account-nav-item" data-account-tab="addresses">Addresses</button>
+            <button type="button" class="account-nav-item" data-account-tab="security">Security</button>
+            <button type="button" class="account-nav-item danger" id="accountLogoutBtn">Logout</button>
+          </nav>
+        </aside>
 
-      <div class="account-grid">
-        <section class="account-card">
-          <h3>Current Orders</h3>
-          <div id="currentOrdersList" class="account-orders"></div>
-        </section>
+        <div class="account-main">
+          <div class="account-head">
+            <div>
+              <h2 id="accountWelcome">Welcome back</h2>
+              <p class="sub account-sub">Manage your profile, orders, and account settings.</p>
+            </div>
+          </div>
 
-        <section class="account-card">
-          <h3>Past Orders</h3>
-          <div id="pastOrdersList" class="account-orders"></div>
-        </section>
-      </div>
+          <p class="auth-message" id="accountPageMessage" aria-live="polite"></p>
 
-      <div class="account-grid">
-        <section class="account-card">
-          <h3>Billing & Shipping Address</h3>
-          <form id="accountAddressForm" class="account-form">
-            <label>
-              <span>Billing Address</span>
-              <textarea name="billingAddress" rows="4" placeholder="Name, street, city, state, ZIP"></textarea>
-            </label>
-            <label>
-              <span>Shipping Address</span>
-              <textarea name="shippingAddress" rows="4" placeholder="Name, street, city, state, ZIP"></textarea>
-            </label>
-            <button type="submit" class="btn primary">Save Addresses</button>
-          </form>
-        </section>
+          <section class="account-panel active" data-account-panel="overview">
+            <div class="account-summary-grid">
+              <article class="account-summary-card">
+                <p class="account-summary-label">Total Orders</p>
+                <p class="account-summary-value" id="summaryTotalOrders">0</p>
+              </article>
+              <article class="account-summary-card">
+                <p class="account-summary-label">Recent Order</p>
+                <p class="account-summary-value" id="summaryRecentOrder">-</p>
+              </article>
+              <article class="account-summary-card">
+                <p class="account-summary-label">Account Status</p>
+                <p class="account-summary-value" id="summaryAccountStatus">Guest</p>
+              </article>
+              <article class="account-summary-card">
+                <p class="account-summary-label">Member Since</p>
+                <p class="account-summary-value" id="summaryMemberSince">-</p>
+              </article>
+            </div>
 
-        <section class="account-card">
-          <h3>Account Settings</h3>
-          <form id="accountProfileForm" class="account-form">
-            <label>
-              <span>Full Name</span>
-              <input type="text" name="name" required>
-            </label>
-            <label>
-              <span>Email</span>
-              <input type="email" name="email" required>
-            </label>
-            <label>
-              <span>Institution</span>
-              <input type="text" name="institution" required>
-            </label>
-            <button type="submit" class="btn primary">Update Profile</button>
-          </form>
+            <article class="account-card">
+              <div class="account-card-head">
+                <h3>Recent Orders</h3>
+                <button type="button" class="btn ghost btn-sm" data-switch-tab="orders">View All</button>
+              </div>
+              <div id="overviewRecentOrders" class="account-orders"></div>
+            </article>
+          </section>
 
-          <hr class="account-divider">
+          <section class="account-panel" data-account-panel="orders">
+            <article class="account-card">
+              <div class="account-card-head">
+                <h3>Order History</h3>
+              </div>
+              <div id="ordersList" class="account-orders"></div>
+            </article>
 
-          <form id="accountPasswordForm" class="account-form">
-            <label>
-              <span>Current Password</span>
-              <input type="password" name="currentPassword" placeholder="Required if you already set one">
-            </label>
-            <label>
-              <span>New Password</span>
-              <input type="password" name="newPassword" minlength="8" required>
-            </label>
-            <label>
-              <span>Confirm New Password</span>
-              <input type="password" name="confirmNewPassword" minlength="8" required>
-            </label>
-            <button type="submit" class="btn primary">Change Password</button>
-          </form>
-        </section>
+            <article class="account-card hidden" id="orderDetailCard">
+              <div class="account-card-head">
+                <h3 id="orderDetailTitle">Order Details</h3>
+                <button type="button" class="btn ghost btn-sm" id="orderDetailBackBtn">Back to Orders</button>
+              </div>
+              <div id="orderDetailBody"></div>
+            </article>
+          </section>
+
+          <section class="account-panel" data-account-panel="profile">
+            <article class="account-card">
+              <h3>Profile Information</h3>
+              <form id="accountProfileForm" class="account-form">
+                <label>
+                  <span>Full Name</span>
+                  <input type="text" name="name" required>
+                </label>
+                <label>
+                  <span>Email</span>
+                  <input type="email" name="email" required>
+                </label>
+                <label>
+                  <span>Phone Number</span>
+                  <input type="tel" name="phone" placeholder="Optional">
+                </label>
+                <label>
+                  <span>Institution</span>
+                  <input type="text" name="institution" required>
+                </label>
+                <button type="submit" class="btn primary">Save Profile</button>
+              </form>
+            </article>
+          </section>
+
+          <section class="account-panel" data-account-panel="addresses">
+            <article class="account-card">
+              <div class="account-card-head">
+                <h3>Shipping Addresses</h3>
+                <button type="button" class="btn ghost btn-sm" id="accountAddressAddBtn">Add New Address</button>
+              </div>
+              <div id="accountAddressList" class="account-address-list"></div>
+            </article>
+
+            <article class="account-card hidden" id="accountAddressEditor">
+              <h3 id="accountAddressEditorTitle">Add Address</h3>
+              <form id="accountAddressForm" class="account-form">
+                <input type="hidden" name="addressId">
+                <label>
+                  <span>Full Name</span>
+                  <input type="text" name="fullName" required>
+                </label>
+                <label>
+                  <span>Street Address</span>
+                  <input type="text" name="street" required>
+                </label>
+                <div class="account-form-row">
+                  <label>
+                    <span>City</span>
+                    <input type="text" name="city" required>
+                  </label>
+                  <label>
+                    <span>State</span>
+                    <input type="text" name="state" required>
+                  </label>
+                </div>
+                <div class="account-form-row">
+                  <label>
+                    <span>ZIP</span>
+                    <input type="text" name="zip" required>
+                  </label>
+                  <label>
+                    <span>Country</span>
+                    <input type="text" name="country" required>
+                  </label>
+                </div>
+                <label class="account-checkbox-row">
+                  <input type="checkbox" name="isDefault">
+                  <span>Set as default address</span>
+                </label>
+                <div class="account-form-actions">
+                  <button type="submit" class="btn primary">Save Address</button>
+                  <button type="button" class="btn ghost" id="accountAddressCancelBtn">Cancel</button>
+                </div>
+              </form>
+            </article>
+          </section>
+
+          <section class="account-panel" data-account-panel="security">
+            <article class="account-card">
+              <h3>Security</h3>
+              <div class="account-security-note" id="securityInfo"></div>
+
+              <hr class="account-divider">
+
+              <form id="accountPasswordForm" class="account-form">
+                <label>
+                  <span>Current Password</span>
+                  <input type="password" name="currentPassword" placeholder="Required if you already set one">
+                </label>
+                <label>
+                  <span>New Password</span>
+                  <input type="password" name="newPassword" minlength="8" required>
+                </label>
+                <label>
+                  <span>Confirm New Password</span>
+                  <input type="password" name="confirmNewPassword" minlength="8" required>
+                </label>
+                <button type="submit" class="btn primary">Change Password</button>
+              </form>
+            </article>
+          </section>
+        </div>
       </div>
     </section>
   </main>

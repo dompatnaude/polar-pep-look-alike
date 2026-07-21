@@ -180,6 +180,47 @@
     $('variantEmpty').classList.toggle('hidden', !enabled);
   }
 
+  function normalizeVariantName(name) {
+    return String(name || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '');
+  }
+
+  function hasDuplicateVariantName(name, ignoreVariantId) {
+    var key = normalizeVariantName(name);
+    if (!key) return false;
+    return (state.productVariants || []).some(function (v) {
+      if (v.active === false) return false;
+      if (ignoreVariantId != null && Number(v.id) === Number(ignoreVariantId)) return false;
+      return normalizeVariantName(v.name) === key;
+    });
+  }
+
+  function removeDuplicateVariants(productId, variants) {
+    var activeVariants = (variants || []).filter(function (v) { return v.active !== false; });
+    var seen = Object.create(null);
+    var duplicateIds = [];
+    activeVariants.forEach(function (v) {
+      var key = normalizeVariantName(v.name);
+      if (!key) return;
+      if (seen[key]) {
+        duplicateIds.push(v.id);
+        return;
+      }
+      seen[key] = v.id;
+    });
+
+    if (!duplicateIds.length) return Promise.resolve(false);
+
+    return Promise.all(duplicateIds.map(function (variantId) {
+      return api('/api/admin/variants/' + variantId, { method: 'DELETE' }).catch(function () { return null; });
+    })).then(function () {
+      toast('Removed ' + duplicateIds.length + ' duplicate dosage option(s).');
+      return true;
+    });
+  }
+
   function renderVariantRows() {
     var tbody = $('variantRows');
     if (!tbody) return;
@@ -229,8 +270,18 @@
     if (!Number.isInteger(productId)) return Promise.resolve();
     return api('/api/admin/products/' + productId + '/variants')
       .then(function (data) {
-        state.productVariants = data.variants || [];
-        renderVariantRows();
+        var variants = data.variants || [];
+        return removeDuplicateVariants(productId, variants).then(function (removed) {
+          if (!removed) {
+            state.productVariants = variants;
+            renderVariantRows();
+            return;
+          }
+          return api('/api/admin/products/' + productId + '/variants').then(function (fresh) {
+            state.productVariants = fresh.variants || [];
+            renderVariantRows();
+          });
+        });
       })
       .catch(function (err) {
         state.productVariants = [];
@@ -257,6 +308,10 @@
   function saveVariant(variantId) {
     var payload = getVariantRowPayload(variantId);
     if (!payload) return;
+    if (hasDuplicateVariantName(payload.name, variantId)) {
+      toast('Duplicate dosage for this product is not allowed.');
+      return;
+    }
     api('/api/admin/variants/' + variantId, { method: 'PUT', body: JSON.stringify(payload) })
       .then(function () {
         toast('Variant updated');
@@ -270,6 +325,10 @@
     var current = state.productVariants.find(function (v) { return Number(v.id) === Number(variantId); });
     if (!current) return;
     payload.active = !current.active;
+    if (payload.active && hasDuplicateVariantName(payload.name, variantId)) {
+      toast('Enable blocked: duplicate dosage already exists for this product.');
+      return;
+    }
     api('/api/admin/variants/' + variantId, { method: 'PUT', body: JSON.stringify(payload) })
       .then(function () {
         toast(payload.active ? 'Variant enabled' : 'Variant disabled');
@@ -298,6 +357,10 @@
       stock_quantity: parseInt($('variantStock').value, 10),
       active: true
     };
+    if (hasDuplicateVariantName(payload.name, null)) {
+      toast('Duplicate dosage for this product is not allowed.');
+      return;
+    }
     api('/api/admin/products/' + state.editingProductId + '/variants', {
       method: 'POST', body: JSON.stringify(payload)
     }).then(function () {

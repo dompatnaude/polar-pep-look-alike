@@ -33,6 +33,31 @@ function parseStock(value) {
   return num;
 }
 
+function normalizedVariantKey(name) {
+  return normalizeText(name, 100)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+async function hasDuplicateVariantName(productId, name, ignoreVariantId) {
+  const key = normalizedVariantKey(name);
+  if (!key) return false;
+  const params = [productId, key];
+  let query =
+    "SELECT id FROM product_variants " +
+    "WHERE product_id = $1 AND active = true " +
+    "AND regexp_replace(lower(name), '[^a-z0-9]+', '', 'g') = $2";
+
+  if (Number.isInteger(ignoreVariantId)) {
+    params.push(ignoreVariantId);
+    query += ' AND id <> $3';
+  }
+
+  query += ' LIMIT 1';
+  const existing = await pool.query(query, params);
+  return existing.rows.length > 0;
+}
+
 function buildVariantPayload(body) {
   const src = body || {};
   const payload = {
@@ -119,6 +144,10 @@ function createAdminVariantsRouter(requireAuth) {
         return res.status(400).json({ error: built.error });
       }
       const v = built.payload;
+      const duplicate = await hasDuplicateVariantName(productId, v.name);
+      if (duplicate) {
+        return res.status(409).json({ error: 'Duplicate dosage for this product is not allowed' });
+      }
       const result = await pool.query(
         'INSERT INTO product_variants (product_id, name, price, stock_quantity, active) ' +
         'VALUES ($1, $2, $3, $4, $5) ' +
@@ -143,14 +172,21 @@ function createAdminVariantsRouter(requireAuth) {
         return res.status(400).json({ error: built.error });
       }
       const v = built.payload;
+      const existingVariant = await pool.query('SELECT product_id FROM product_variants WHERE id = $1', [variantId]);
+      if (!existingVariant.rows.length) {
+        return res.status(404).json({ error: 'Variant not found' });
+      }
+      if (v.active) {
+        const duplicate = await hasDuplicateVariantName(existingVariant.rows[0].product_id, v.name, variantId);
+        if (duplicate) {
+          return res.status(409).json({ error: 'Duplicate dosage for this product is not allowed' });
+        }
+      }
       const result = await pool.query(
         'UPDATE product_variants SET name = $1, price = $2, stock_quantity = $3, active = $4, updated_at = CURRENT_TIMESTAMP ' +
         'WHERE id = $5 RETURNING id, product_id, name, price, stock_quantity, active, created_at, updated_at',
         [v.name, v.price, v.stock_quantity, v.active, variantId]
       );
-      if (!result.rows.length) {
-        return res.status(404).json({ error: 'Variant not found' });
-      }
       res.json({ variant: result.rows[0] });
     } catch (error) {
       console.error(error);
