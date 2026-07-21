@@ -2,7 +2,6 @@ const express = require('express');
 const productsRouter = require("./routes/products");
 const createCartRouter = require("./routes/cart");
 const createOrdersRouter = require("./routes/orders");
-const createAdminRouter = require("./routes/admin");
 const { transferGuestCart } = require("./routes/cart");
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
@@ -636,7 +635,6 @@ app.post('/api/account/orders', function (req, res, next) {
 app.use("/api/products", productsRouter);
 app.use("/api/cart", createCartRouter(requireAuth));
 app.use("/api/orders", createOrdersRouter(requireAuth));
-app.use("/api/admin", createAdminRouter(requireAuth));
 
 app.use(express.static(path.join(__dirname)));
 
