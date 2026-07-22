@@ -118,12 +118,16 @@
       var image = p.image_url ? '<img class="product-thumb" src="' + esc(p.image_url) + '" alt="' + esc(p.name || 'Product') + '">' : '<span class="muted">No image</span>';
       var status = p.active ? '<span class="badge green">active</span>' : '<span class="badge gray">inactive</span>';
       var toggleText = p.active ? 'Disable' : 'Enable';
+      var stockTotal = p.variant_stock_total != null ? Number(p.variant_stock_total) : null;
+      var stockCell = stockTotal != null
+        ? esc(String(stockTotal)) + ' <span class="muted" style="font-size:.8em">(variants)</span>'
+        : esc(String(p.stock_quantity == null ? '' : p.stock_quantity));
       return '<tr>'
         + '<td>' + image + '</td>'
         + '<td><strong>' + esc(p.name || '') + '</strong><br><span class="muted">' + esc(p.slug || '') + '</span></td>'
         + '<td>' + esc(p.category || '\u2014') + '</td>'
         + '<td>' + money(p.price) + '</td>'
-        + '<td>' + esc(String(p.stock_quantity == null ? '' : p.stock_quantity)) + '</td>'
+        + '<td>' + stockCell + '</td>'
         + '<td>' + status + '</td>'
         + '<td>'
         + '<button class="btn-sm secondary" data-product-edit="' + p.id + '">Edit</button> '
@@ -229,6 +233,12 @@
       tbody.innerHTML = '';
       $('variantEmpty').textContent = 'No variants yet.';
       $('variantEmpty').classList.remove('hidden');
+      // Remove stale tfoot and restore editable stock field
+      var table = $('variantListTable');
+      var tf = table && table.querySelector('tfoot');
+      if (tf) tf.remove();
+      var stockField = document.querySelector('#productForm [name="stock_quantity"]');
+      if (stockField) { stockField.readOnly = false; stockField.title = ''; stockField.style.background = ''; }
       return;
     }
     $('variantEmpty').classList.add('hidden');
@@ -236,7 +246,11 @@
       return '<tr data-variant-id="' + v.id + '">'
         + '<td><input data-field="name" type="text" value="' + esc(v.name || '') + '" maxlength="100"></td>'
         + '<td><input data-field="price" type="number" min="0" step="0.01" value="' + Number(v.price || 0).toFixed(2) + '"></td>'
-        + '<td><input data-field="stock_quantity" type="number" min="0" step="1" value="' + (Number(v.stock_quantity || 0)) + '"></td>'
+        + '<td><span class="stock-stepper">'
+        + '<button class="btn-sm secondary" type="button" data-variant-dec="' + v.id + '">&#8722;</button>'
+        + '<input data-field="stock_quantity" type="number" min="0" step="1" value="' + (Number(v.stock_quantity || 0)) + '">'
+        + '<button class="btn-sm secondary" type="button" data-variant-inc="' + v.id + '">+</button>'
+        + '</span></td>'
         + '<td>' + (v.active ? '<span class="badge green">active</span>' : '<span class="badge gray">inactive</span>') + '</td>'
         + '<td class="variant-actions">'
         + '<button class="btn-sm secondary" type="button" data-variant-save="' + v.id + '">Save</button>'
@@ -245,6 +259,26 @@
         + '</td>'
         + '</tr>';
     }).join('');
+
+    // Total stock footer
+    var totalQty = variants.reduce(function (sum, v) { return sum + Number(v.stock_quantity || 0); }, 0);
+    var table = $('variantListTable');
+    var tf = table.querySelector('tfoot');
+    if (!tf) { tf = document.createElement('tfoot'); table.appendChild(tf); }
+    tf.innerHTML = '<tr>'
+      + '<td colspan="2" style="text-align:right;padding-right:.6rem;font-weight:600;border-top:2px solid #d1d9e6;">Total Available Stock:</td>'
+      + '<td style="font-weight:700;border-top:2px solid #d1d9e6;" id="variantStockTotal">' + totalQty + '</td>'
+      + '<td colspan="2" style="border-top:2px solid #d1d9e6;"></td>'
+      + '</tr>';
+
+    // Update product-form stock field to reflect variant total
+    var stockField = document.querySelector('#productForm [name="stock_quantity"]');
+    if (stockField && Number.isInteger(state.editingProductId)) {
+      stockField.value = String(totalQty);
+      stockField.readOnly = true;
+      stockField.title = 'Auto-calculated from variant quantities';
+      stockField.style.background = '#f4f6fa';
+    }
 
     Array.prototype.forEach.call(tbody.querySelectorAll('[data-variant-save]'), function (btn) {
       btn.addEventListener('click', function () {
@@ -262,6 +296,18 @@
       btn.addEventListener('click', function () {
         var id = parseInt(btn.getAttribute('data-variant-delete'), 10);
         disableVariant(id);
+      });
+    });
+    Array.prototype.forEach.call(tbody.querySelectorAll('[data-variant-dec]'), function (btn) {
+      btn.addEventListener('click', function () {
+        var id = parseInt(btn.getAttribute('data-variant-dec'), 10);
+        adjustVariantStock(id, -1);
+      });
+    });
+    Array.prototype.forEach.call(tbody.querySelectorAll('[data-variant-inc]'), function (btn) {
+      btn.addEventListener('click', function () {
+        var id = parseInt(btn.getAttribute('data-variant-inc'), 10);
+        adjustVariantStock(id, 1);
       });
     });
   }
@@ -305,6 +351,21 @@
     };
   }
 
+  function adjustVariantStock(variantId, delta) {
+    api('/api/admin/variants/' + variantId + '/stock', {
+      method: 'PATCH',
+      body: JSON.stringify({ adjustment: delta })
+    }).then(function (data) {
+      var updated = data.variant;
+      if (updated) {
+        var v = state.productVariants.find(function (x) { return Number(x.id) === Number(variantId); });
+        if (v) v.stock_quantity = Number(updated.stock_quantity);
+      }
+      renderVariantRows();
+      loadProducts();
+    }).catch(function (err) { toast(err.message || 'Failed to adjust stock'); });
+  }
+
   function saveVariant(variantId) {
     var payload = getVariantRowPayload(variantId);
     if (!payload) return;
@@ -317,6 +378,7 @@
         toast('Variant updated');
         return loadVariants(state.editingProductId);
       })
+      .then(function () { return loadProducts(); })
       .catch(function (err) { toast(err.message || 'Failed to update variant'); });
   }
 
@@ -334,6 +396,7 @@
         toast(payload.active ? 'Variant enabled' : 'Variant disabled');
         return loadVariants(state.editingProductId);
       })
+      .then(function () { return loadProducts(); })
       .catch(function (err) { toast(err.message || 'Failed to update variant'); });
   }
 
@@ -343,6 +406,7 @@
         toast(data && data.mode === 'hard_delete' ? 'Variant deleted' : 'Variant archived');
         return loadVariants(state.editingProductId);
       })
+      .then(function () { return loadProducts(); })
       .catch(function (err) { toast(err.message || 'Failed to delete variant'); });
   }
 
@@ -369,7 +433,8 @@
       $('variantStock').value = '';
       toast('Variant created');
       return loadVariants(state.editingProductId);
-    }).catch(function (err) { toast(err.message || 'Failed to create variant'); });
+    }).then(function () { return loadProducts(); })
+    .catch(function (err) { toast(err.message || 'Failed to create variant'); });
   }
 
   function openProductModal(product) {

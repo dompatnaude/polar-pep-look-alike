@@ -41,6 +41,7 @@ var selectedProductId = null;
 var activeCategory = 'all';
 var activeSort = 'default';
 var currentAuthSession = null;
+var checkoutState = { promoCode: '', shippingCost: 0 };
 var DEFAULT_PRODUCT_IMAGE_URL = 'assets/products/default-product.png';
 var homeFeaturedProductIds = null;
 var THEME_MODE_STORAGE_KEY = 'pepxThemeMode';
@@ -1085,7 +1086,11 @@ function renderCart(){
     badge.style.display = count>0 ? 'flex' : 'none';
   }
   var totalEl = document.getElementById('cartTotal');
-  if(totalEl){ totalEl.textContent = formatMoney(total); }
+  if(totalEl){ totalEl.textContent = formatMoney(total + Number(checkoutState.shippingCost || 0)); }
+  var checkoutSubtotalEl = document.getElementById('checkoutSubtotal');
+  if(checkoutSubtotalEl){ checkoutSubtotalEl.textContent = formatMoney(total); }
+  var checkoutShippingEl = document.getElementById('checkoutShipping');
+  if(checkoutShippingEl){ checkoutShippingEl.textContent = formatMoney(Number(checkoutState.shippingCost || 0)); }
   var savingsEl = document.getElementById('cartSavings');
   var savedAmount = Math.max(0, fullTotal - total);
   if(savingsEl){
@@ -1101,7 +1106,7 @@ function renderCart(){
     if(checkout) checkout.innerHTML = '<p class="cart-empty">Your cart is empty.</p>';
     return;
   }
-  var itemsHtml = items.map(function(item){
+  var drawerItemsHtml = items.map(function(item){
     var itemId = Number(item.id);
     var qty = Number(item.quantity || 0);
     var pricing = getQuantityPricing(Number(item.price || 0), qty);
@@ -1117,8 +1122,26 @@ function renderCart(){
       '<div class="qty"><button data-dec="'+itemId+'">-</button><span>'+qty+'</span><button data-inc="'+itemId+'">+</button></div>'+ 
       '</div><button class="rm" data-rm="'+itemId+'">Remove</button></div>';
   }).join('');
-  if(body) body.innerHTML = itemsHtml;
-  if(checkout) checkout.innerHTML = itemsHtml;
+  var checkoutItemsHtml = items.map(function(item){
+    var itemId = Number(item.id);
+    var qty = Number(item.quantity || 0);
+    var pricing = getQuantityPricing(Number(item.price || 0), qty);
+    var unitPrice = Number(item.price || 0);
+    var imageUrl = item.image_url || DEFAULT_PRODUCT_IMAGE_URL;
+    return '<article class="checkout-summary-item">'
+      + '<div class="thumb" style="background-image:url(\'' + escapeHtml(imageUrl) + '\')"></div>'
+      + '<div>'
+      + '<p class="checkout-summary-name">' + escapeHtml(item.name || 'Product') + '</p>'
+      + (item.variant_name ? ('<p class="checkout-summary-variant">' + escapeHtml(item.variant_name) + '</p>') : '')
+      + '<p class="checkout-summary-each">Each: ' + formatMoney(unitPrice) + '</p>'
+      + '<div class="checkout-summary-qty"><button type="button" data-dec="' + itemId + '">-</button><span>' + qty + '</span><button type="button" data-inc="' + itemId + '">+</button></div>'
+      + '<button type="button" class="checkout-summary-remove" data-rm="' + itemId + '">Remove</button>'
+      + '</div>'
+      + '<strong class="checkout-summary-price">' + formatMoney(pricing.discountedTotal) + '</strong>'
+      + '</article>';
+  }).join('');
+  if(body) body.innerHTML = drawerItemsHtml;
+  if(checkout) checkout.innerHTML = checkoutItemsHtml;
   var attachHandlers = function(container){
     if(!container) return;
     container.querySelectorAll('[data-inc]').forEach(function(b){
@@ -1502,6 +1525,12 @@ function getStatusTone(status){
   return 'info';
 }
 
+function formatStatusLabel(status){
+  var key = normalizeStatus(status);
+  if(!key) return 'Processing';
+  return key.replace(/_/g, ' ').replace(/\b\w/g, function(ch){ return ch.toUpperCase(); });
+}
+
 function formatMemberSince(value){
   var dt = new Date(value);
   if(Number.isNaN(dt.getTime())) return '-';
@@ -1514,6 +1543,10 @@ function formatMemberSince(value){
 function buildOrderListCard(order){
   var status = String(order.status || 'processing');
   var statusTone = getStatusTone(status);
+  var orderId = Number(order.id);
+  var actionMarkup = Number.isInteger(orderId)
+    ? '<button type="button" class="btn ghost btn-sm" data-order-view="' + orderId + '">View Order</button>'
+    : '<button type="button" class="btn ghost btn-sm" disabled title="Order unavailable">View Order</button>';
   return '<article class="account-order-card">' +
     '<div class="account-order-head">' +
       '<h4>' + escapeHtml(order.order_number || ('Order #' + order.id)) + '</h4>' +
@@ -1524,7 +1557,7 @@ function buildOrderListCard(order){
       '<span><strong>Total:</strong> ' + formatMoney(order.total) + '</span>' +
     '</div>' +
     '<div class="account-order-actions">' +
-      '<button type="button" class="btn ghost btn-sm" data-order-view="' + Number(order.id) + '">View Order</button>' +
+      actionMarkup +
     '</div>' +
   '</article>';
 }
@@ -1716,18 +1749,37 @@ function initAccountPage(){
     if(!orderDetailCard || !orderDetailBody || !detail || !detail.order) return;
     var order = detail.order;
     var items = Array.isArray(detail.items) ? detail.items : [];
-    var shippingLine = [order.shipping_address, order.shipping_city, order.shipping_state, order.shipping_zip]
+    var shippingLine = [order.shipping_address, order.shipping_city, order.shipping_state, order.shipping_zip, order.shipping_country]
       .filter(function(part){ return String(part || '').trim(); })
       .join(', ');
+    var tracking = detail.shipping && detail.shipping.tracking_number ? detail.shipping.tracking_number : order.tracking_number;
+    var carrier = detail.shipping && detail.shipping.carrier ? detail.shipping.carrier : order.carrier;
+    var shippingLabelUrl = detail.shipping && detail.shipping.shipping_label_url ? detail.shipping.shipping_label_url : order.shipping_label_url;
+    var shippedAt = detail.shipping && detail.shipping.shipped_at ? detail.shipping.shipped_at : order.shipped_at;
+    var shipmentStatus = shippedAt
+      ? 'Shipped'
+      : (tracking || shippingLabelUrl ? 'Label Created' : formatStatusLabel(order.status));
+    var paymentStatus = detail.payment && detail.payment.status
+      ? detail.payment.status
+      : (normalizeStatus(order.status) === 'pending_payment' ? 'Pending' : 'Paid');
+    var paymentMethod = detail.payment && detail.payment.method
+      ? detail.payment.method
+      : 'Not recorded';
+    var subtotal = detail.totals && detail.totals.subtotal != null ? detail.totals.subtotal : 0;
+    var shippingCost = detail.totals && detail.totals.shipping_cost != null ? detail.totals.shipping_cost : 0;
+    var total = detail.totals && detail.totals.total != null ? detail.totals.total : order.total;
+    var customerName = order.shipping_name || (state.profile && state.profile.name) || '-';
+    var customerEmail = order.shipping_email || (state.profile && state.profile.email) || '-';
+    var statusTone = getStatusTone(order.status);
 
     if(orderDetailTitle){
-      orderDetailTitle.textContent = 'Order Details - ' + String(order.order_number || ('#' + order.id));
+      orderDetailTitle.textContent = 'Order #' + String(order.order_number || ('#' + order.id));
     }
 
     var itemRows = items.length ? items.map(function(item){
       var dosage = item.variant_name ? ('<span class="account-item-dose">' + escapeHtml(item.variant_name) + '</span>') : '';
       var qty = Number(item.quantity || 0);
-      var price = Number(item.variant_price != null ? item.variant_price : item.price || 0);
+      var price = Number(item.price || 0);
       return '<tr>' +
         '<td>' + escapeHtml(item.name || '') + dosage + '</td>' +
         '<td>' + qty + '</td>' +
@@ -1737,25 +1789,51 @@ function initAccountPage(){
     }).join('') : '<tr><td colspan="4">No line items found.</td></tr>';
 
     orderDetailBody.innerHTML = '' +
+      '<section class="account-order-hero">' +
+        '<div>' +
+          '<p class="account-order-eyebrow">Order Details</p>' +
+          '<h3 class="account-order-number">Order #' + escapeHtml(String(order.order_number || order.id || '')) + '</h3>' +
+          '<p class="account-order-date">Placed on ' + escapeHtml(formatOrderDate(order.created_at)) + '</p>' +
+        '</div>' +
+        '<div class="account-order-hero-meta">' +
+          '<span class="account-order-status ' + statusTone + '">' + escapeHtml(formatStatusLabel(order.status)) + '</span>' +
+          '<div class="account-order-customer">' +
+            '<p><strong>Customer:</strong> ' + escapeHtml(customerName) + '</p>' +
+            '<p><strong>Email:</strong> ' + escapeHtml(customerEmail) + '</p>' +
+          '</div>' +
+        '</div>' +
+      '</section>' +
       '<div class="account-order-detail-grid">' +
         '<div class="account-order-detail-block">' +
-          '<h4>Items</h4>' +
+          '<h4>Order Summary</h4>' +
           '<div class="account-order-table-wrap">' +
             '<table class="account-order-table">' +
-              '<thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Subtotal</th></tr></thead>' +
+              '<thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Line Total</th></tr></thead>' +
               '<tbody>' + itemRows + '</tbody>' +
             '</table>' +
           '</div>' +
+          '<div class="account-order-totals">' +
+            '<p><span>Subtotal</span><strong>' + formatMoney(subtotal) + '</strong></p>' +
+            '<p><span>Shipping</span><strong>' + formatMoney(shippingCost) + '</strong></p>' +
+            '<p class="grand"><span>Total</span><strong>' + formatMoney(total) + '</strong></p>' +
+          '</div>' +
         '</div>' +
-        '<div class="account-order-detail-block">' +
-          '<h4>Shipping</h4>' +
-          '<p><strong>Name:</strong> ' + escapeHtml(order.shipping_name || '-') + '</p>' +
-          '<p><strong>Email:</strong> ' + escapeHtml(order.shipping_email || '-') + '</p>' +
-          '<p><strong>Address:</strong> ' + escapeHtml(shippingLine || '-') + '</p>' +
-          '<p><strong>Tracking:</strong> ' + escapeHtml(order.tracking_number || 'Not assigned yet') + '</p>' +
-          '<p><strong>Status:</strong> ' + escapeHtml(order.status || '-') + '</p>' +
-          '<p><strong>Total:</strong> ' + formatMoney(order.total) + '</p>' +
-        '</div>' +
+        '<aside class="account-order-side">' +
+          '<div class="account-order-detail-block">' +
+            '<h4>Shipping</h4>' +
+            '<p><strong>Address:</strong> ' + escapeHtml(shippingLine || '-') + '</p>' +
+            '<p><strong>Phone:</strong> ' + escapeHtml(order.shipping_phone || '-') + '</p>' +
+            '<p><strong>Tracking:</strong> ' + escapeHtml(tracking || 'Not assigned yet') + '</p>' +
+            '<p><strong>Carrier:</strong> ' + escapeHtml(carrier || 'Not assigned yet') + '</p>' +
+            '<p><strong>Shipment Status:</strong> ' + escapeHtml(shipmentStatus) + '</p>' +
+            (shippingLabelUrl ? '<p><a href="' + escapeHtml(shippingLabelUrl) + '" target="_blank" rel="noopener">View shipping label</a></p>' : '') +
+          '</div>' +
+          '<div class="account-order-detail-block">' +
+            '<h4>Payment</h4>' +
+            '<p><strong>Method:</strong> ' + escapeHtml(paymentMethod) + '</p>' +
+            '<p><strong>Status:</strong> ' + escapeHtml(paymentStatus) + '</p>' +
+          '</div>' +
+        '</aside>' +
       '</div>' +
       '<div class="account-order-detail-block">' +
         '<h4>Order Status Timeline</h4>' +
@@ -1763,6 +1841,42 @@ function initAccountPage(){
       '</div>';
 
     orderDetailCard.classList.remove('hidden');
+    if(order && Number.isInteger(Number(order.id))){
+      updateOrderDetailUrl(Number(order.id));
+    }
+  }
+
+  function updateOrderDetailUrl(orderId){
+    var url = new URL(window.location.href);
+    if(Number.isInteger(orderId)){
+      url.searchParams.set('tab', 'orders');
+      url.searchParams.set('order_id', String(orderId));
+    } else {
+      url.searchParams.delete('order_id');
+    }
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+  }
+
+  function openOrderDetail(orderId){
+    if(!Number.isInteger(orderId)){
+      return Promise.reject(new Error('Invalid order id'));
+    }
+    setActiveTab('orders');
+    return authApi('/api/orders/' + orderId, { method: 'GET' })
+      .then(function(detail){
+        renderOrderDetail(detail);
+        return detail;
+      });
+  }
+
+  function getOrderIdFromLocation(){
+    try {
+      var params = new URLSearchParams(window.location.search || '');
+      var id = parseInt(params.get('order_id'), 10);
+      return Number.isInteger(id) ? id : null;
+    } catch (e) {
+      return null;
+    }
   }
 
   function renderAddressList(){
@@ -1860,6 +1974,13 @@ function initAccountPage(){
       renderOrdersList();
       renderAddressList();
       hideAddressEditor();
+      var requestedOrderId = getOrderIdFromLocation();
+      if(Number.isInteger(requestedOrderId)){
+        setActiveTab('orders');
+        return openOrderDetail(requestedOrderId).catch(function(err){
+          setPageMessage(err.message || 'Failed to load order details.', true);
+        }).then(function(){ return results; });
+      }
       return results;
     });
   }
@@ -1916,10 +2037,7 @@ function initAccountPage(){
       if(!viewBtn) return;
       var orderId = parseInt(viewBtn.getAttribute('data-order-view'), 10);
       if(!Number.isInteger(orderId)) return;
-      authApi('/api/orders/' + orderId, { method: 'GET' })
-        .then(function(detail){
-          renderOrderDetail(detail);
-        })
+      openOrderDetail(orderId)
         .catch(function(err){
           setPageMessage(err.message || 'Failed to load order details.', true);
         });
@@ -1932,11 +2050,7 @@ function initAccountPage(){
       if(!viewBtn) return;
       var orderId = parseInt(viewBtn.getAttribute('data-order-view'), 10);
       if(!Number.isInteger(orderId)) return;
-      setActiveTab('orders');
-      authApi('/api/orders/' + orderId, { method: 'GET' })
-        .then(function(detail){
-          renderOrderDetail(detail);
-        })
+      openOrderDetail(orderId)
         .catch(function(err){
           setPageMessage(err.message || 'Failed to load order details.', true);
         });
@@ -1946,6 +2060,7 @@ function initAccountPage(){
   if(orderDetailBackBtn){
     orderDetailBackBtn.addEventListener('click', function(){
       if(orderDetailCard) orderDetailCard.classList.add('hidden');
+      updateOrderDetailUrl(null);
     });
   }
 
@@ -2243,6 +2358,147 @@ function initGate(){
   v();
 }
 
+function splitFullName(name){
+  var parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if(!parts.length){ return { first: '', last: '' }; }
+  if(parts.length === 1){ return { first: parts[0], last: '' }; }
+  return { first: parts[0], last: parts.slice(1).join(' ') };
+}
+
+function setCheckoutMessage(message, isError){
+  var msg = document.getElementById('checkoutError');
+  if(!msg) return;
+  msg.textContent = message || '';
+  msg.classList.toggle('error', !!isError);
+}
+
+function prefillCheckoutFromProfile(profile){
+  if(!profile) return;
+  var firstNameEl = document.getElementById('shipping_first_name');
+  var lastNameEl = document.getElementById('shipping_last_name');
+  var emailEl = document.getElementById('shipping_email');
+  var addressEl = document.getElementById('shipping_address');
+  var cityEl = document.getElementById('shipping_city');
+  var stateEl = document.getElementById('shipping_state');
+  var zipEl = document.getElementById('shipping_zip');
+  var countryEl = document.getElementById('shipping_country');
+  var phoneEl = document.getElementById('shipping_phone');
+
+  var split = splitFullName(profile.name);
+  if(firstNameEl && !firstNameEl.value.trim()) firstNameEl.value = split.first;
+  if(lastNameEl && !lastNameEl.value.trim()) lastNameEl.value = split.last;
+  if(emailEl && !emailEl.value.trim()) emailEl.value = profile.email || '';
+
+  var addressBook = parseAddressBook(profile);
+  var defaultAddress = (addressBook.addresses || []).find(function(addr){
+    return String(addr.id) === String(addressBook.defaultId);
+  }) || (addressBook.addresses || [])[0] || null;
+
+  if(defaultAddress){
+    if(addressEl && !addressEl.value.trim()) addressEl.value = defaultAddress.street || '';
+    if(cityEl && !cityEl.value.trim()) cityEl.value = defaultAddress.city || '';
+    if(stateEl && !stateEl.value.trim()) stateEl.value = defaultAddress.state || '';
+    if(zipEl && !zipEl.value.trim()) zipEl.value = defaultAddress.zip || '';
+    if(countryEl && !countryEl.value.trim()) countryEl.value = defaultAddress.country || 'United States';
+
+    var checkoutName = splitFullName(defaultAddress.fullName);
+    if(firstNameEl && !firstNameEl.value.trim() && checkoutName.first){ firstNameEl.value = checkoutName.first; }
+    if(lastNameEl && !lastNameEl.value.trim() && checkoutName.last){ lastNameEl.value = checkoutName.last; }
+  }
+
+  if(phoneEl && !phoneEl.value.trim()) phoneEl.value = addressBook.phone || '';
+}
+
+function initCheckoutPage(){
+  var checkoutPage = document.querySelector('.page-checkout');
+  if(!checkoutPage) return;
+
+  var promoInput = document.getElementById('promoCodeInput');
+  var promoBtn = document.getElementById('applyPromoBtn');
+  var promoMsg = document.getElementById('promoCodeMessage');
+  var checkoutBtnEl = document.getElementById('checkoutBtn');
+  var shippingForm = document.getElementById('shippingForm');
+
+  checkoutState.shippingCost = 0;
+  renderCart();
+
+  if(promoBtn && promoInput){
+    promoBtn.addEventListener('click', function(){
+      var code = String(promoInput.value || '').trim();
+      checkoutState.promoCode = code;
+      if(promoMsg){
+        promoMsg.textContent = code
+          ? ('Promo code "' + code + '" saved. Any eligible discounts are validated during order processing.')
+          : 'Volume discounts are applied automatically when eligible.';
+      }
+    });
+  }
+
+  loadAuthSession().then(function(session){
+    if(!session) return null;
+    return authApi('/api/account/overview', { method: 'GET' })
+      .then(function(data){
+        prefillCheckoutFromProfile(data && data.profile ? data.profile : null);
+      }).catch(function(){ return null; });
+  });
+
+  if(!checkoutBtnEl) return;
+  checkoutBtnEl.addEventListener('click', function(){
+    if(!(cartData && Array.isArray(cartData.items) && cartData.items.length)){
+      showToast('Your cart is empty');
+      return;
+    }
+    if(!currentAuthSession){
+      showToast('Please sign in to place your order.');
+      openAuthModal('login');
+      return;
+    }
+    if(shippingForm && typeof shippingForm.reportValidity === 'function' && !shippingForm.reportValidity()){
+      setCheckoutMessage('Please complete all required checkout fields.', true);
+      return;
+    }
+
+    var firstName = String((document.getElementById('shipping_first_name') || {}).value || '').trim();
+    var lastName = String((document.getElementById('shipping_last_name') || {}).value || '').trim();
+    var paymentMethodEl = document.querySelector('input[name="payment_method"]:checked');
+    var shipping = {
+      shipping_name: (firstName + ' ' + lastName).trim(),
+      shipping_email: String((document.getElementById('shipping_email') || {}).value || '').trim(),
+      shipping_address: String((document.getElementById('shipping_address') || {}).value || '').trim(),
+      shipping_city: String((document.getElementById('shipping_city') || {}).value || '').trim(),
+      shipping_state: String((document.getElementById('shipping_state') || {}).value || '').trim(),
+      shipping_zip: String((document.getElementById('shipping_zip') || {}).value || '').trim(),
+      shipping_country: String((document.getElementById('shipping_country') || {}).value || '').trim(),
+      shipping_phone: String((document.getElementById('shipping_phone') || {}).value || '').trim(),
+      payment_method: paymentMethodEl ? paymentMethodEl.value : 'card',
+      promo_code: checkoutState.promoCode || null,
+      shipping_cost: Number(checkoutState.shippingCost || 0)
+    };
+
+    setCheckoutMessage('', false);
+    authApi('/api/orders', {
+      method: 'POST',
+      body: JSON.stringify(shipping)
+    }).then(function(order){
+      cart = {};
+      cartData = { items: [], total: 0 };
+      renderCart();
+      closeCart();
+      showToast('Order confirmed \u2014 ' + (order.order_number || ''));
+      var qs = 'order_id=' + encodeURIComponent(order.order_id) + '&order_number=' + encodeURIComponent(order.order_number || '');
+      window.location.href = 'order-confirmation.html?' + qs;
+    }).catch(function(err){
+      if(err && err.status === 401){
+        showToast('Please sign in to place your order.');
+        openAuthModal('login');
+        return;
+      }
+      setCheckoutMessage(err.message || 'Failed to place order. Please review your details and try again.', true);
+      showToast(err.message || 'Failed to place order.');
+    });
+  });
+}
+
 // ---------- Init ----------
 // ---------- Load products from API (Supabase-backed) ----------
 async function loadProductsFromAPI(){
@@ -2428,55 +2684,7 @@ window.addEventListener('DOMContentLoaded', function(){
       openAuthModal('signup');
     });
   }
-  var checkoutBtnEl = document.getElementById('checkoutBtn');
-  if(checkoutBtnEl){
-    checkoutBtnEl.addEventListener('click', function(){
-      if(!Object.keys(cart).length){ showToast('Your cart is empty'); return; }
-      if(!currentAuthSession){
-        showToast('Please sign in to place your order.');
-        openAuthModal('login');
-        return;
-      }
-
-      var shipping = {
-          shipping_name: (document.getElementById('shipping_name')||{}).value || '',
-          shipping_email: (document.getElementById('shipping_email')||{}).value || '',
-          shipping_address: (document.getElementById('shipping_address')||{}).value || '',
-          shipping_city: (document.getElementById('shipping_city')||{}).value || '',
-          shipping_state: (document.getElementById('shipping_state')||{}).value || '',
-          shipping_zip: (document.getElementById('shipping_zip')||{}).value || ''
-        };
-        var shForm = document.getElementById('shippingForm');
-        if(shForm){
-          var missing = false;
-          Object.keys(shipping).forEach(function(k){ if(!String(shipping[k]).trim()) missing = true; });
-          if(missing){
-            if(typeof shForm.reportValidity === 'function' && !shForm.reportValidity()){ return; }
-            showToast('Please complete all shipping fields.');
-            return;
-          }
-        }
-        authApi('/api/orders', {
-          method: 'POST',
-          body: JSON.stringify(shipping)
-        }).then(function(order){
-          cart = {};
-          cartData = { items: [], total: 0 };
-          renderCart();
-          closeCart();
-          showToast('Order confirmed \u2014 ' + (order.order_number || ''));
-          var qs = 'order_id=' + encodeURIComponent(order.order_id) + '&order_number=' + encodeURIComponent(order.order_number || '');
-          window.location.href = 'order-confirmation.html?' + qs;
-        }).catch(function(err){
-          if(err && err.status === 401){
-            showToast('Please sign in to place your order.');
-            openAuthModal('login');
-            return;
-          }
-          showToast(err.message || 'Failed to place order.');
-        });
-    });
-  }
+  initCheckoutPage();
 
   // Smooth scroll for in-page anchors
   document.querySelectorAll('a[href^="#"]').forEach(function(link){

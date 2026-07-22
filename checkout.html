@@ -23,25 +23,103 @@
   </div></header>
 
   <main class="container page-checkout">
-    <section class="section">
-      <h1>Your Cart</h1>
-      <p class="sub">Review your selected research compounds and proceed to checkout.</p>
-      <div class="cart-table" id="checkoutCart"></div>
-      <div class="drawer-foot">
-        <div class="tot"><span>Total</span><span id="cartTotal">$0.00</span></div>
-        <div class="cart-savings" id="cartSavings" style="display:none;">You saved $0.00</div>
-        <div class="shipping-block">
-          <h2 class="sub" style="margin-top:1.2rem">Shipping Information</h2>
-          <form id="shippingForm" class="auth-form" autocomplete="on">
-            <label><span>Full Name</span><input type="text" id="shipping_name" name="shipping_name" autocomplete="name" required></label>
-            <label><span>Email</span><input type="email" id="shipping_email" name="shipping_email" autocomplete="email" required></label>
-            <label><span>Address</span><input type="text" id="shipping_address" name="shipping_address" autocomplete="street-address" required></label>
-            <label><span>City</span><input type="text" id="shipping_city" name="shipping_city" autocomplete="address-level2" required></label>
-            <label><span>State</span><input type="text" id="shipping_state" name="shipping_state" autocomplete="address-level1" required></label>
-            <label><span>ZIP</span><input type="text" id="shipping_zip" name="shipping_zip" autocomplete="postal-code" required></label>
-          </form>
+    <section class="section checkout-section">
+      <div class="checkout-head">
+        <p class="checkout-kicker">Secure Checkout</p>
+        <h1>Complete Your Order</h1>
+        <p class="sub">Review your items, confirm shipping details, and place your order securely.</p>
+      </div>
+
+      <div class="checkout-layout">
+        <div class="checkout-main">
+          <article class="checkout-card">
+            <div class="checkout-card-head">
+              <h2>Customer Information</h2>
+              <p>Use the email associated with your account for faster order updates.</p>
+            </div>
+            <form id="shippingForm" class="checkout-form" autocomplete="on">
+              <label><span>Email Address</span><input type="email" id="shipping_email" name="shipping_email" autocomplete="email" required></label>
+              <div class="checkout-form-row">
+                <label><span>First Name</span><input type="text" id="shipping_first_name" name="shipping_first_name" autocomplete="given-name" required></label>
+                <label><span>Last Name</span><input type="text" id="shipping_last_name" name="shipping_last_name" autocomplete="family-name" required></label>
+              </div>
+              <label><span>Shipping Address</span><input type="text" id="shipping_address" name="shipping_address" autocomplete="street-address" required></label>
+              <div class="checkout-form-row checkout-form-row-3">
+                <label><span>City</span><input type="text" id="shipping_city" name="shipping_city" autocomplete="address-level2" required></label>
+                <label><span>State</span><input type="text" id="shipping_state" name="shipping_state" autocomplete="address-level1" required></label>
+                <label><span>ZIP</span><input type="text" id="shipping_zip" name="shipping_zip" autocomplete="postal-code" required></label>
+              </div>
+              <div class="checkout-form-row">
+                <label><span>Country</span><input type="text" id="shipping_country" name="shipping_country" autocomplete="country-name" value="United States" required></label>
+                <label><span>Phone Number</span><input type="tel" id="shipping_phone" name="shipping_phone" autocomplete="tel" required></label>
+              </div>
+            </form>
+          </article>
+
+          <article class="checkout-card">
+            <div class="checkout-card-head">
+              <h2>Payment</h2>
+              <p>Your order remains in pending status until payment is finalized.</p>
+            </div>
+            <div class="checkout-payments" id="paymentMethods">
+              <label class="checkout-payment-option">
+                <input type="radio" name="payment_method" value="card" checked>
+                <span>
+                  <strong>Credit / Debit Card</strong>
+                  <small>Securely processed after order review confirmation.</small>
+                </span>
+              </label>
+              <label class="checkout-payment-option">
+                <input type="radio" name="payment_method" value="manual">
+                <span>
+                  <strong>Manual Payment Coordination</strong>
+                  <small>Our team will follow up with payment instructions.</small>
+                </span>
+              </label>
+            </div>
+            <p class="checkout-note" id="checkoutError" aria-live="polite"></p>
+          </article>
+
+          <article class="checkout-card checkout-trust">
+            <h3>Why Order With PepX</h3>
+            <ul>
+              <li>Secure checkout session with server-side order validation.</li>
+              <li>Inventory is verified at checkout to prevent overselling.</li>
+              <li>Need help? Contact <a href="mailto:pepxaminos@gmail.com">pepxaminos@gmail.com</a>.</li>
+              <li>Shipping status and tracking updates appear in your account orders.</li>
+            </ul>
+          </article>
+
+          <button class="btn primary co" id="checkoutBtn">Place Order</button>
         </div>
-        <button class="btn primary co" id="checkoutBtn">Place Order</button>
+
+        <aside class="checkout-side">
+          <article class="checkout-card checkout-summary-card">
+            <div class="checkout-card-head">
+              <h2>Order Summary</h2>
+              <p>Adjust quantities before placing your order.</p>
+            </div>
+            <div class="cart-table checkout-summary-items" id="checkoutCart"></div>
+
+            <div class="checkout-promo">
+              <label for="promoCodeInput">Promo Code</label>
+              <div class="checkout-promo-row">
+                <input type="text" id="promoCodeInput" placeholder="Enter promo code">
+                <button type="button" class="btn ghost btn-sm" id="applyPromoBtn">Apply</button>
+              </div>
+              <p class="checkout-note" id="promoCodeMessage">Volume discounts are applied automatically when eligible.</p>
+            </div>
+
+            <div class="checkout-totals">
+              <div><span>Subtotal</span><strong id="checkoutSubtotal">$0.00</strong></div>
+              <div><span>Shipping</span><strong id="checkoutShipping">$0.00</strong></div>
+              <div class="checkout-savings" id="cartSavings" style="display:none;">You saved $0.00</div>
+              <div class="total"><span>Total</span><strong id="cartTotal">$0.00</strong></div>
+            </div>
+
+            <p class="checkout-secure-msg">Secure checkout powered by authenticated session and protected order APIs.</p>
+          </article>
+        </aside>
       </div>
     </section>
   </main>

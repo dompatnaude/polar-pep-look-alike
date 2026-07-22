@@ -99,8 +99,9 @@ function createAdminProductsRouter(requireAuth) {
   router.get('/', gate, async (req, res) => {
     try {
       const result = await pool.query(
-        'SELECT id, name, slug, description, price, category, image_url, sku, stock_quantity, active, created_at ' +
-        'FROM products ORDER BY created_at DESC'
+        'SELECT p.id, p.name, p.slug, p.description, p.price, p.category, p.image_url, p.sku, p.stock_quantity, p.active, p.created_at, ' +
+        '(SELECT SUM(pv.stock_quantity) FROM product_variants pv WHERE pv.product_id = p.id AND pv.active = true) AS variant_stock_total ' +
+        'FROM products p ORDER BY p.created_at DESC'
       );
       res.json({ products: result.rows });
     } catch (error) {

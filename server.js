@@ -274,6 +274,7 @@ async function createOrderByUserId(userId, payloadItems) {
 }
 
 app.use(express.json());
+const sessionCookieSecure = process.env.NODE_ENV === 'production';
 app.use(
   session({
     store: new pgSession({
@@ -286,7 +287,7 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: sessionCookieSecure,
       sameSite: 'lax',
       maxAge: 1000 * 60 * 60 * 24 * 7
     }

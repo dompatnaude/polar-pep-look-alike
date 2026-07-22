@@ -56,7 +56,7 @@ function createOrdersRouter(requireAuth) {
   router.get("/", requireAuth, async (req, res) => {
     try {
       const result = await pool.query(
-        `SELECT order_number, status, total, created_at
+        `SELECT id, order_number, status, total, created_at
            FROM orders
           WHERE user_id = $1
           ORDER BY created_at DESC`,
@@ -98,6 +98,16 @@ function createOrdersRouter(requireAuth) {
           subtotal: order.subtotal,
           shipping_cost: order.shipping_cost,
           total: order.total,
+        },
+        payment: {
+          method: order.payment_method || null,
+          status: order.status === 'pending_payment' ? 'Pending' : 'Paid'
+        },
+        shipping: {
+          tracking_number: order.tracking_number || null,
+          carrier: order.carrier || null,
+          shipping_label_url: order.shipping_label_url || null,
+          shipped_at: order.shipped_at || null
         },
         status: order.status,
       });
@@ -265,6 +275,10 @@ async function createOrder(req, res) {
     subtotal = money(subtotal);
     const shippingCost = money(body.shipping_cost || 0);
     const total = money(subtotal + shippingCost);
+    const shippingCountry = String(body.shipping_country || '').trim() || null;
+    const shippingPhone = String(body.shipping_phone || '').trim() || null;
+    const paymentMethod = String(body.payment_method || '').trim() || null;
+    const promoCode = String(body.promo_code || '').trim() || null;
 
     // 5. Create the order. Let PostgreSQL generate the identity id, then
     // derive the deterministic order_number (PX + id + 100000) from that id.
@@ -272,7 +286,7 @@ async function createOrder(req, res) {
     // placeholder first, then update it once the generated id is known.
     const tempOrderNumber = `TMP-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const insertRes = await client.query(
-      `INSERT INTO orders (order_number, user_id, status, subtotal, shipping_cost, total, shipping_name, shipping_email, shipping_address, shipping_city, shipping_state, shipping_zip) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+      `INSERT INTO orders (order_number, user_id, status, subtotal, shipping_cost, total, shipping_name, shipping_email, shipping_address, shipping_city, shipping_state, shipping_zip, shipping_country, shipping_phone, payment_method, promo_code) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
       [
         tempOrderNumber,
         userId,
@@ -286,6 +300,10 @@ async function createOrder(req, res) {
         body.shipping_city || null,
         body.shipping_state || null,
         body.shipping_zip || null,
+        shippingCountry,
+        shippingPhone,
+        paymentMethod,
+        promoCode,
       ]
     );
     const orderId = insertRes.rows[0].id;

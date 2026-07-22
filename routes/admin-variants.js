@@ -242,6 +242,51 @@ function createAdminVariantsRouter(requireAuth) {
     }
   });
 
+  // PATCH /api/admin/variants/:id/stock — quick stock adjustment without changing name/price/active.
+  // Body: { adjustment: N } to add/subtract, or { quantity: N } to set an absolute value.
+  router.patch('/variants/:id/stock', gate, async (req, res) => {
+    try {
+      const variantId = parseInt(req.params.id, 10);
+      if (!Number.isInteger(variantId)) {
+        return res.status(400).json({ error: 'Invalid variant id' });
+      }
+      const body = req.body || {};
+
+      if ('quantity' in body) {
+        const qty = parseStock(body.quantity);
+        if (qty == null) {
+          return res.status(400).json({ error: 'quantity must be a non-negative integer' });
+        }
+        const result = await pool.query(
+          'UPDATE product_variants SET stock_quantity = $1, updated_at = CURRENT_TIMESTAMP ' +
+          'WHERE id = $2 RETURNING id, product_id, stock_quantity',
+          [qty, variantId]
+        );
+        if (!result.rows.length) return res.status(404).json({ error: 'Variant not found' });
+        return res.json({ variant: result.rows[0] });
+      }
+
+      if ('adjustment' in body) {
+        const adj = parseInt(body.adjustment, 10);
+        if (!Number.isInteger(adj)) {
+          return res.status(400).json({ error: 'adjustment must be an integer' });
+        }
+        const result = await pool.query(
+          'UPDATE product_variants SET stock_quantity = GREATEST(0, stock_quantity + $1), updated_at = CURRENT_TIMESTAMP ' +
+          'WHERE id = $2 RETURNING id, product_id, stock_quantity',
+          [adj, variantId]
+        );
+        if (!result.rows.length) return res.status(404).json({ error: 'Variant not found' });
+        return res.json({ variant: result.rows[0] });
+      }
+
+      return res.status(400).json({ error: 'body must contain quantity or adjustment' });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to update stock' });
+    }
+  });
+
   return router;
 }
 
