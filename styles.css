@@ -1194,3 +1194,66 @@ footer{background:#1f2937;}
 	.stats .n{font-size:10.5px;line-height:1.15;}
 	.stats .l{font-size:9.5px;line-height:1.25;}
 }
+
+/* ============================================================
+   MOBILE PHONE OPTIMIZATION (<=480px) - added for responsiveness
+   Scoped to phone breakpoints only; desktop/tablet untouched.
+   ============================================================ */
+@media (max-width: 480px) {
+  /* Prevent any horizontal page overflow on phones */
+  html, body { max-width: 100%; overflow-x: hidden; }
+  .container, .hero, main, header, footer, section { max-width: 100%; }
+  img, video { max-width: 100%; height: auto; }
+
+  /* --- Hero trust/stat section: keep all 3 in ONE horizontal row --- */
+  .stats {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    align-items: start;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 16px;
+    padding-top: 14px;
+  }
+  .stats > div { min-width: 0; text-align: left; }
+  .stats .n {
+    font-size: clamp(13px, 4.4vw, 18px) !important;
+    line-height: 1.1 !important;
+    letter-spacing: -0.2px;
+    white-space: nowrap;
+  }
+  .stats .l {
+    font-size: clamp(9px, 2.9vw, 11px) !important;
+    line-height: 1.25 !important;
+    overflow-wrap: anywhere;
+  }
+
+  /* --- Shop category strip: single scrollable row, hidden scrollbar --- */
+  .category-strip,
+  .featured-category-strip.category-strip {
+    display: flex !important;
+    grid-template-columns: none !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;            /* Firefox */
+    -ms-overflow-style: none;         /* IE/Edge */
+    max-width: 100%;
+  }
+  .category-strip::-webkit-scrollbar,
+  .featured-category-strip.category-strip::-webkit-scrollbar {
+    height: 0 !important;
+    width: 0 !important;
+    display: none !important;         /* Chrome/Safari */
+    background: transparent !important;
+  }
+  .category-strip .pill,
+  .featured-category-strip.category-strip .pill {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    scroll-snap-align: start;
+  }
+}
