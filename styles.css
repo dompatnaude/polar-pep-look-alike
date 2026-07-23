@@ -1257,3 +1257,43 @@ footer{background:#1f2937;}
     scroll-snap-align: start;
   }
 }
+
+/* ============================================================
+   MOBILE PHONE OPTIMIZATION (<=480px) - shop page category list
+   Turn the sidebar vertical/2-col pill list into a single
+   horizontal scrollable row (matches homepage strip behavior).
+   ============================================================ */
+@media (max-width: 480px) {
+  .shop-categories {
+    position: static;
+    padding: 12px;
+    overflow: hidden;
+    max-width: 100%;
+  }
+  .shop-categories .pill-list.pill-list-vertical {
+    display: flex !important;
+    grid-template-columns: none !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    gap: 8px;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    max-width: 100%;
+  }
+  .shop-categories .pill-list.pill-list-vertical::-webkit-scrollbar {
+    height: 0 !important;
+    width: 0 !important;
+    display: none !important;
+    background: transparent !important;
+  }
+  .shop-categories .pill-list.pill-list-vertical .pill {
+    width: auto !important;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    justify-content: center;
+    scroll-snap-align: start;
+  }
+}
