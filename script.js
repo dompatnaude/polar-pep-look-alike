@@ -206,7 +206,7 @@ function initQuantitySteppers(){
       input.value = String(next);
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.dispatchEvent(new Event('change', { bubbles: true }));
-      input.focus();
+          if (!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches)) { input.focus(); }
     });
   });
 }
